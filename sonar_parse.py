@@ -28,12 +28,21 @@ class OmniScanParser:
                 ...
         """
         for byte in raw_bytes:
-            if self._parser.parse_byte(byte) == PingParser.NEW_MESSAGE:
-                msg = self._parser.rx_msg
-                if msg.message_id == OS_MONO_PROFILE:
-                    decoded = self._decode_profile(msg)
-                    if decoded is not None:
-                        yield decoded
+            if self._parser.parse_byte(byte) != PingParser.NEW_MESSAGE:
+                continue
+            msg = self._parser.rx_msg
+            if msg.message_id != OS_MONO_PROFILE:
+                continue
+            # brping silently fails to unpack packets whose format string
+            # produces 0 bytes (e.g. session-info or protocol-version messages
+            # sent by SonarLink on connect). When that happens pwr_results is
+            # left as the integer 0 rather than a bytearray, so guard here
+            # instead of letting _decode_profile crash further down.
+            if not isinstance(msg.pwr_results, (bytes, bytearray)):
+                continue
+            decoded = self._decode_profile(msg)
+            if decoded is not None:
+                yield decoded
 
     @staticmethod
     def _decode_profile(msg):
@@ -60,7 +69,7 @@ class OmniScanParser:
             "start_mm": msg.start_mm,
             "length_mm": msg.length_mm,
             "num_results": n,
-            "vehicle_heading_deg": float(msg.vehicle_heading),
+            "vehicle_heading_deg": float(msg.vehicle_heading_deg),
             "min_pwr_db": min_db,
             "max_pwr_db": max_db,
             "samples_db": samples_db,        # list[float], length n
