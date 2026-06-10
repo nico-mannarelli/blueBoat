@@ -138,4 +138,50 @@ with contextlib.redirect_stdout(io.StringIO()):
     results5 = list(parser5.feed(proto_ver_buf + profile_bytes))
 check(results5[-1]["ping_number"] == 30, f"profile after bad packet decoded (got {[r['ping_number'] for r in results5]})")
 
+# ---- test 6: MAVLINK_WRAPPER GPS decode ------------------------------------
+print("\nTest 6: MAVLINK_WRAPPER containing GLOBAL_POSITION_INT")
+import json as _json
+
+def build_mavlink_wrapper(payload_dict):
+    """Build a valid MAVLINK_WRAPPER (ID 150) packet from a JSON-serialisable dict."""
+    payload = _json.dumps(payload_dict).encode("utf-8")
+    n = len(payload)
+    header = struct.pack("<BBHHBB", 0x42, 0x52, n, 150, 0, 0)
+    body   = header + payload
+    ck     = sum(body) & 0xFFFF
+    return body + struct.pack("<H", ck)
+
+gps_payload = {
+    "mavpackettype": "GLOBAL_POSITION_INT",
+    "time_boot_ms":  12345,
+    "lat":           407127000,    # 40.7127° N  (New York)
+    "lon":          -740059000,    # -74.0059° W
+    "alt":           5000,         # 5 m
+    "hdg":           9000,         # 90.00°
+}
+parser6 = OmniScanParser()
+import io, contextlib
+with contextlib.redirect_stdout(io.StringIO()):
+    results6 = list(parser6.feed(build_mavlink_wrapper(gps_payload)))
+check(len(results6) == 1, f"decoded 1 GPS packet (got {len(results6)})")
+gps = results6[0]
+check(gps["type"] == "gps", f"type='gps' (got {gps['type']})")
+check(abs(gps["lat"]  -  40.7127) < 0.0001, f"lat≈40.7127 (got {gps['lat']:.6f})")
+check(abs(gps["lon"]  - -74.0059) < 0.0001, f"lon≈-74.0059 (got {gps['lon']:.6f})")
+check(abs(gps["alt_m"] - 5.0)     < 0.001,  f"alt_m=5.0 (got {gps['alt_m']})")
+check(abs(gps["heading_deg"] - 90.0) < 0.01, f"heading=90.0° (got {gps['heading_deg']})")
+
+print("\nTest 7: MAVLINK_WRAPPER mixed with ping packets")
+parser7 = OmniScanParser()
+buf7 = (
+    build_mavlink_wrapper(gps_payload)
+    + build_packet(ping_number=99, samples_u16=[32767] * 30)
+    + build_mavlink_wrapper(gps_payload)
+)
+with contextlib.redirect_stdout(io.StringIO()):
+    results7 = list(parser7.feed(buf7))
+types7 = [r["type"] for r in results7]
+check(types7 == ["gps", "ping", "gps"], f"gps/ping/gps order (got {types7})")
+check(results7[1]["ping_number"] == 99, "ping_number=99")
+
 print("\nAll parser tests passed.")
