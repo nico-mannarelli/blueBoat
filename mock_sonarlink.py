@@ -1,27 +1,25 @@
 """
 mock_sonarlink.py
-A local HTTP + WebSocket server that mimics Cerulean SonarLink, so main.py
-can run end-to-end without the boat.
+Local mock of both Cerulean SonarLink and mavlink2rest, so main.py can
+run end-to-end without the boat.
 
-Endpoints:
-  GET /status              → JSON with one fake session
-  GET /connect_ws          → WebSocket; waits for os_ping_params before
-                             streaming os_mono_profile packets at 20 Hz
+SonarLink (port 7077):
+  GET /status       → fake session JSON
+  GET /connect_ws   → WebSocket; waits for os_ping_params, then streams
+                      os_mono_profile at 20 Hz
+
+mavlink2rest (port 6040):
+  GET /v1/ws/mavlink → WebSocket; streams GLOBAL_POSITION_INT + ATTITUDE
+                       at 4 Hz in mavlink2rest JSON format
 
 Usage:
-  # Terminal 1 — start the mock server
-  python mock_sonarlink.py
-
-  # Terminal 2 — run the pipeline pointed at localhost
-  HOST=127.0.0.1 python main.py
-  # (or edit HOST in main.py to "127.0.0.1" temporarily)
-
-The mock will not stream any pings until the client sends os_ping_params
-with enable=1, matching real SonarLink behaviour. Once started, it emits
-a bright target near sample 100 for pings 100-200 out of every 300.
+  python mock_sonarlink.py          # terminal 1
+  HOST=127.0.0.1 python main.py     # terminal 2
 """
 
 import asyncio
+import json
+import math
 import struct
 import time
 
@@ -30,9 +28,14 @@ from aiohttp import web
 from brping.pingmessage import PingMessage, PingParser
 import brping.definitions as defs
 
-HOST = "127.0.0.1"
-PORT = 7077
+HOST       = "127.0.0.1"
+PORT       = 7077
+MAV_PORT   = 6040
 SESSION_ID = "mock-0001"
+
+# Fake position: somewhere in the Atlantic for obvious test output
+_LAT_DEG =  41.123456
+_LON_DEG = -70.654321
 
 NUM_SAMPLES = 200
 LENGTH_MM = 10_000
@@ -146,11 +149,84 @@ async def handle_ws(request):
     return ws
 
 
-app = web.Application()
-app.router.add_get("/status", handle_status)
-app.router.add_get("/connect_ws", handle_ws)
+# ---- mavlink2rest mock (port 6040) -----------------------------------------
+
+async def handle_mavlink_ws(_request):
+    """Stream GLOBAL_POSITION_INT + ATTITUDE at 4 Hz in mavlink2rest format."""
+    ws = web.WebSocketResponse()
+    await ws.prepare(_request)
+    print("[mock/mav] client connected")
+
+    seq = 0
+    heading_deg = 45.0   # start heading NE, slowly rotate
+    try:
+        while not ws.closed:
+            ts = int(time.monotonic() * 1000) & 0xFFFF_FFFF
+
+            gps_msg = {
+                "header": {"system_id": 1, "component_id": 1, "sequence": seq},
+                "message": {
+                    "type":         "GLOBAL_POSITION_INT",
+                    "time_boot_ms": ts,
+                    "lat":          int(_LAT_DEG * 1e7),
+                    "lon":          int(_LON_DEG * 1e7),
+                    "alt":          500,          # 0.5 m (mm units)
+                    "relative_alt": 500,
+                    "vx":           10,
+                    "vy":           0,
+                    "vz":           0,
+                    "hdg":          int(heading_deg * 100),
+                },
+            }
+            att_msg = {
+                "header": {"system_id": 1, "component_id": 1, "sequence": seq + 1},
+                "message": {
+                    "type":        "ATTITUDE",
+                    "time_boot_ms": ts,
+                    "roll":        0.0,
+                    "pitch":       0.0,
+                    "yaw":         math.radians(heading_deg),
+                    "rollspeed":   0.0,
+                    "pitchspeed":  0.0,
+                    "yawspeed":    0.0,
+                },
+            }
+
+            await ws.send_str(json.dumps(gps_msg))
+            await ws.send_str(json.dumps(att_msg))
+
+            heading_deg = (heading_deg + 0.5) % 360
+            seq += 2
+            await asyncio.sleep(0.25)   # 4 Hz
+    except Exception:
+        pass
+
+    print("[mock/mav] client disconnected")
+    return ws
+
+
+# ---- server startup --------------------------------------------------------
+
+sonar_app = web.Application()
+sonar_app.router.add_get("/status",     handle_status)
+sonar_app.router.add_get("/connect_ws", handle_ws)
+
+mav_app = web.Application()
+mav_app.router.add_get("/v1/ws/mavlink", handle_mavlink_ws)
+
+
+async def _run_both():
+    sonar_runner = web.AppRunner(sonar_app)
+    mav_runner   = web.AppRunner(mav_app)
+    await sonar_runner.setup()
+    await mav_runner.setup()
+    await web.TCPSite(sonar_runner, HOST, PORT).start()
+    await web.TCPSite(mav_runner,   HOST, MAV_PORT).start()
+    print(f"[mock] SonarLink    →  ws://{HOST}:{PORT}/connect_ws")
+    print(f"[mock] mavlink2rest →  ws://{HOST}:{MAV_PORT}/v1/ws/mavlink")
+    print(f'[mock] Run:  HOST=127.0.0.1 python main.py')
+    await asyncio.Event().wait()   # run forever
+
 
 if __name__ == "__main__":
-    print(f"[mock] SonarLink server  →  http://{HOST}:{PORT}")
-    print(f'[mock] Point main.py at HOST = "{HOST}"')
-    web.run_app(app, host=HOST, port=PORT, print=None)
+    asyncio.run(_run_both())
