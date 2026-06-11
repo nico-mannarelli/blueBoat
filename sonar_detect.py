@@ -83,10 +83,12 @@ class WaterfallDetector:
 
     # ---- detector (matches roidetector.h, MSER stage) ----------------------
     def _detect(self):
-        if len(self._rows) < 2:
+        if len(self._rows) < 3:
             return [], None
 
         image = self._build_image(list(self._rows))
+        if image.shape[0] < 3 or image.shape[1] < 3:
+            return [], image
         _regions, bboxes = self._mser.detectRegions(image)
 
         objects = []

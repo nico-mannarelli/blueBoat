@@ -139,8 +139,8 @@ class OmniScanParser:
         if "GLOBAL_POSITION_INT" not in msg_type:
             return None
 
-        lat = data.get("lat") or data.get("latitude")
-        lon = data.get("lon") or data.get("longitude")
+        lat = data["lat"] if "lat" in data else data.get("latitude")
+        lon = data["lon"] if "lon" in data else data.get("longitude")
         if lat is None or lon is None:
             return None
 

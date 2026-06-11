@@ -98,6 +98,8 @@ class MAVLinkClient:
     # ---- message handling --------------------------------------------------
 
     def _handle(self, packet):
+        if not isinstance(packet, dict):
+            return
         # mavlink2rest wraps the MAVLink message under a "message" key
         msg = packet.get("message", packet)
         msg_type = str(msg.get("type", "")).upper()
@@ -106,17 +108,23 @@ class MAVLinkClient:
             lat = _unwrap(msg.get("lat", 0))
             lon = _unwrap(msg.get("lon", 0))
             alt = _unwrap(msg.get("alt", 0))
-            if abs(lat) <= 900_000_000:   # sanity: ±90° in 1e-7 deg
-                self.state.update_gps(
-                    lat=lat / 1e7,
-                    lon=lon / 1e7,
-                    alt_m=alt / 1000.0,
-                    timestamp_ms=_unwrap(msg.get("time_boot_ms", 0)),
-                )
+            try:
+                if abs(lat) <= 900_000_000:   # sanity: ±90° in 1e-7 deg
+                    self.state.update_gps(
+                        lat=lat / 1e7,
+                        lon=lon / 1e7,
+                        alt_m=alt / 1000.0,
+                        timestamp_ms=_unwrap(msg.get("time_boot_ms", 0)),
+                    )
+            except TypeError:
+                pass
 
         elif msg_type == "ATTITUDE":
             yaw = _unwrap(msg.get("yaw", 0))   # radians
-            self.state.update_heading(math.degrees(yaw))
+            try:
+                self.state.update_heading(math.degrees(yaw))
+            except TypeError:
+                pass
 
     # ---- websocket callbacks -----------------------------------------------
 
