@@ -6,8 +6,8 @@ Wires the pipeline together:
                                                           ▼
     SonarLink WebSocket  →  OmniScanParser  →  WaterfallDetector
                                                           │
-                                               handle_detection()
-                                               georeference() → lat/lon
+                                               on_frame()       ← live display (every 5 pings)
+                                               handle_detection() ← MSER + georeference (every 50 pings)
 
 Vehicle state (GPS + heading) comes from two sources, in priority order:
   1. mavlink2rest WebSocket (direct, ATTITUDE for heading — primary)
@@ -23,6 +23,8 @@ Run against the mock server:
 import math
 import os
 
+import cv2
+
 from sonar_ws import SonarLinkClient
 from sonar_parse import OmniScanParser
 from sonar_detect import WaterfallDetector
@@ -31,6 +33,8 @@ from mavlink_client import MAVLinkClient, VehicleState
 HOST     = os.environ.get("HOST", "192.168.2.2")
 PORT     = int(os.environ.get("SONAR_PORT", 7077))
 MAV_PORT = int(os.environ.get("MAV_PORT",   6040))
+
+_WINDOW = "OmniScan 450 — Live Waterfall"
 
 # ---- shared state ----------------------------------------------------------
 
@@ -43,7 +47,7 @@ parser  = OmniScanParser()
 def georeference(detection, ping):
     """Convert a waterfall bounding box to approximate lat/lon.
 
-    Range = start_mm + sample_row * mm_per_sample.
+    Range = start_mm + sample_column * mm_per_sample.
     Bearing = transducer_heading_deg recorded per ping.
     Dead-reckoned from latest vehicle fix.
     Returns (lat, lon) or None if no fix yet.
@@ -52,7 +56,8 @@ def georeference(detection, ping):
     if fix is None:
         return None
 
-    range_m = (ping["start_mm"] + detection["y"] * ping["mm_per_sample"]) / 1000.0
+    # detection["x"] is the column (sample index) = range axis
+    range_m = (ping["start_mm"] + detection["x"] * ping["mm_per_sample"]) / 1000.0
     bearing = math.radians(ping["transducer_heading_deg"])
     ref_lat = fix["lat"]
     ref_lon = fix["lon"]
@@ -63,9 +68,32 @@ def georeference(detection, ping):
     return ref_lat + dlat, ref_lon + dlon
 
 
+# ---- live display ----------------------------------------------------------
+
+def on_frame(objects, ping, image):
+    """Draw the latest waterfall with detection bounding boxes and show it."""
+    display = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+    for obj in objects:
+        x, y, w, h = obj["x"], obj["y"], obj["w"], obj["h"]
+        cv2.rectangle(display, (x, y), (x + w, y + h), (0, 255, 0), 1)
+
+    fix = vehicle.fix
+    gps_str = f"gps=({fix['lat']:.5f},{fix['lon']:.5f})" if fix else "no-fix"
+    label = f"ping #{ping['ping_number']}  {gps_str}  {len(objects)} detection(s)"
+    cv2.putText(display, label, (4, 14), cv2.FONT_HERSHEY_SIMPLEX,
+                0.4, (0, 255, 0), 1, cv2.LINE_AA)
+
+    cv2.imshow(_WINDOW, display)
+    cv2.waitKey(1)
+
+
 # ---- detection callback ----------------------------------------------------
 
-def handle_detection(objects, ping, _image):
+def handle_detection(objects, ping, image):
+    # Update the display immediately when detection runs
+    if image is not None:
+        on_frame(objects, ping, image)
+
     if not objects:
         print(f"[detect] ping #{ping['ping_number']}: clear")
         return
@@ -79,7 +107,8 @@ def handle_detection(objects, ping, _image):
     print(f"[detect] ping #{ping['ping_number']}: {len(objects)} object(s){gps_tag}")
 
     for obj in objects:
-        range_mm = ping["start_mm"] + obj["y"] * ping["mm_per_sample"]
+        # obj["x"] = column = sample index = range direction
+        range_mm = ping["start_mm"] + obj["x"] * ping["mm_per_sample"]
         latlon   = georeference(obj, ping)
         loc      = f"({latlon[0]:.6f}, {latlon[1]:.6f})" if latlon else "no-fix"
         print(
@@ -97,7 +126,9 @@ def handle_detection(objects, ping, _image):
 detector = WaterfallDetector(
     max_rows=500,
     detect_every=50,
+    display_every=5,
     on_detection=handle_detection,
+    on_frame=on_frame,
 )
 
 
@@ -123,13 +154,14 @@ def main():
     print(f"[main] sonar    →  {HOST}:{PORT}")
     print(f"[main] mavlink  →  {HOST}:{MAV_PORT}")
 
-    # Start mavlink2rest client in background thread
     mav = MAVLinkClient(host=HOST, port=MAV_PORT, state=vehicle)
     mav.start()
 
-    # Run sonar client in main thread (blocking)
     sonar = SonarLinkClient(host=HOST, port=PORT, on_bytes=on_bytes)
-    sonar.run_forever(auto_reconnect=True)
+    try:
+        sonar.run_forever(auto_reconnect=True)
+    finally:
+        cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
