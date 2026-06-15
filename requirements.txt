@@ -4,3 +4,10 @@ numpy==2.4.6
 opencv-python==4.13.0.92
 pyxtf
 websocket-client==1.9.0
+
+# Optional — only for running CFAR on a GPU (cfar_backend="torch") on the edge
+# server. The default numpy backend needs nothing below; leave commented for the
+# CPU test setup.
+#   GPU server (CUDA):  pip install torch
+#   CPU / VM:           pip install torch --index-url https://download.pytorch.org/whl/cpu
+# torch

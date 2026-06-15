@@ -19,7 +19,9 @@ source venv/bin/activate            # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-Requires Python 3.12+.
+Requires Python 3.12+. The default detector runs entirely on CPU (numpy +
+OpenCV). PyTorch is **optional** and only needed to run CFAR on a GPU
+(`cfar_backend="torch"`) on the edge server — see `requirements.txt`.
 
 ## Core pipeline
 
@@ -29,7 +31,7 @@ Data flows: **raw bytes → parsed pings → waterfall image → detections → 
 |------|------|
 | `sonar_ws.py` | WebSocket client for SonarLink (`192.168.2.2:7077`). Fetches a session ID, sends `os_ping_params` to start pinging, streams raw bytes to a callback. |
 | `sonar_parse.py` | Parses Cerulean Ping packets into dicts. Decodes `os_mono_profile` (sonar samples + `channel_number`) and `MAVLINK_WRAPPER` (embedded GPS). |
-| `sonar_detect.py` | The detection engine (`WaterfallDetector`). Builds the flat-fielded waterfall image and runs Hough + ROI detection, NMS, nadir masking, and a contrast filter. **All detection logic lives here.** |
+| `sonar_detect.py` | The detection engine (`WaterfallDetector`). Builds the flat-fielded waterfall and runs **CFAR** anomaly detection (adaptive per-pixel threshold, no baseline or labels needed) with optional shadow gating, plus an alternate classical Hough + ROI detector. NMS, nadir masking, and box-merging included. **All detection logic lives here.** |
 | `mavlink_client.py` | Connects to mavlink2rest (`:6040`) for GPS + heading, kept in a thread-safe `VehicleState`. |
 
 `main.py`, `replay_xtf.py`, and `mock_sonarlink.py` are three different *sources*
@@ -90,14 +92,52 @@ python test_stress.py               # adversarial / edge cases (59 tests)
 
 Real seafloor backscatter has high dynamic range and a range-dependent (TVG)
 brightness profile. The detector flat-fields each column (divides by its
-along-track median), percentile-stretches, and despeckles — this is essential;
-a naive histogram-equalize amplifies seabed speckle into thousands of false
-detections. Validated against a real recording: ~34x fewer false positives than
-the original pipeline while still reliably detecting a known target.
+along-track median) so the static range pattern is removed and targets stand
+out locally — this is essential; a naive histogram-equalize amplifies seabed
+speckle into thousands of false detections.
+
+**CFAR (default detector).** Constant-False-Alarm-Rate detection estimates the
+local seabed background from a band of reference cells around each pixel (a
+guard band excludes the pixel's neighbourhood so a bright target can't bias its
+own background) and flags the pixel when it exceeds `local_mean + k·local_std`.
+This needs **no labels and no pre-recorded baseline** — the background is
+estimated from the data itself, per pixel, so it adapts to whatever bottom the
+boat is over. Two design choices make it work on real data:
+
+- **dB domain.** CFAR runs on a dB-excess image — each column flat-fielded by
+  *subtracting* its along-track median (TVG is additive in dB), so seabed ≈ 0 dB
+  and a target is a positive dB excess. Working in dB rather than linear keeps a
+  few hot clutter pixels from inflating the local variance and pushing the
+  threshold out of reach of a genuine target.
+- **Horizontal-band reference.** Background is estimated from range-direction
+  (left/right) neighbours only. A target running along-track — a log at roughly
+  constant range — always has clean seabed to its left and right whatever its
+  length, so CFAR fires along its whole extent. A square reference window would
+  let the target fill its own along-track reference cells and self-suppress its
+  interior (the target would show *no* detection down its middle).
+
+Window sums use an integral image (summed-area table) for O(1) per-pixel cost,
+which is also why the optional `cfar_backend="torch"` GPU path on the edge
+server is trivially parallel. The numpy and torch backends produce identical
+results. Sensitivity is set by `cfar_k` (higher = fewer detections). Validated
+on a real recording: the known along-track log is detected as a single tall
+contact at ~14 anomalies/window.
+
+**Shadow gating** (`shadow_gate=True`, off by default) requires a dark acoustic
+shadow on a hit's far-range side. This rejects bright clutter for *proud*
+objects (mines, rocks), but a flat-lying target like a half-buried log casts no
+usable shadow, so the gate is off by default and the known log is kept.
+
+**Box-merging** unions CFAR fragments within `cfar_merge_gap` px so an elongated
+target reports as one contact rather than several.
+
+GPU on the edge server: set `cfar_backend="torch"`. CFAR itself is light enough
+to run real-time on CPU; the GPU's real value is classifying the surviving
+candidates (a future step, once confirmed/dismissed detections accumulate into
+labels) and survey mosaicking.
 
 Known limitations / next steps:
-- The elongated targets fragment into several boxes (no shape-merge step yet).
 - Seabed clutter (rocks/debris) is still detected; separating target *types*
-  needs shape/shadow analysis.
+  needs shape/shadow analysis or a classifier (no labels yet).
 - The per-channel port/starboard side mapping (`CHANNEL_SIDE_OFFSET` in
   `main.py`) mirrors the XTF order but is unconfirmed against the live stream.
