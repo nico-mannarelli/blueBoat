@@ -5,16 +5,27 @@ Replay a SonarView .xtf recording through the detection pipeline.
 Feeds real ping data into the same WaterfallDetector used in production,
 so detection results match what you'd see from the live boat.
 
+SonarView records the OmniScan 450 in side-scan mode: two channels
+(port = channel 0, starboard = channel 1), uint16 samples. We combine
+them into a full swath image (port reversed | starboard) with nadir at
+the centre column, which is the standard side-scan waterfall view.
+
+Navigation comes from the Sensor* fields in each ping header:
+    SensorYcoordinate = latitude
+    SensorXcoordinate = longitude
+    SensorHeading     = heading (deg)
+
 Usage:
-    python replay_xtf.py scan.xtf               # real-time speed
-    python replay_xtf.py scan.xtf --speed 4     # 4x faster
-    python replay_xtf.py scan.xtf --speed 0     # no delay (max speed)
-    python replay_xtf.py scan.xtf --probe       # print file info and exit
+    python replay_xtf.py scan.xtf                 # real-time speed
+    python replay_xtf.py scan.xtf --speed 4       # 4x faster
+    python replay_xtf.py scan.xtf --speed 0       # no delay (max speed)
+    python replay_xtf.py scan.xtf --channel 1     # single channel only
+    python replay_xtf.py scan.xtf --probe         # print file info and exit
 """
 
 import argparse
+import itertools
 import math
-import sys
 import time
 
 import cv2
@@ -29,67 +40,93 @@ MIN_PWR_DB = -90.0
 MAX_PWR_DB = -40.0
 _WINDOW    = "OmniScan 450 — XTF Replay"
 
+
 # ---- sample conversion -----------------------------------------------------
 
-def _to_db(raw_samples, sample_format):
-    """Map raw XTF sample values to dB matching our pipeline's ping dict format."""
-    arr = np.asarray(raw_samples, dtype=np.float64)
+def _to_db(arr, sample_format):
+    """Map raw XTF sample values to dB. Absolute scale is unimportant — the
+    detector re-normalises per window — but we keep relative ordering."""
+    arr = np.asarray(arr, dtype=np.float64)
     span = MAX_PWR_DB - MIN_PWR_DB
-
-    if sample_format == XTFSampleFormat.word:       # uint16  0-65535
-        return (MIN_PWR_DB + (arr / 65535.0) * span).tolist()
-    elif sample_format == XTFSampleFormat.byte:     # uint8   0-255
-        return (MIN_PWR_DB + (arr / 255.0) * span).tolist()
-    else:
-        lo, hi = float(arr.min()), float(arr.max())
-        if hi > lo:
-            arr = (arr - lo) / (hi - lo)
-        else:
-            arr = np.zeros_like(arr)
-        return (MIN_PWR_DB + arr * span).tolist()
+    if sample_format == XTFSampleFormat.word:       # uint16
+        return MIN_PWR_DB + (arr / 65535.0) * span
+    elif sample_format == XTFSampleFormat.byte:     # uint8
+        return MIN_PWR_DB + (arr / 255.0) * span
+    lo, hi = float(arr.min()), float(arr.max())
+    norm = (arr - lo) / (hi - lo) if hi > lo else np.zeros_like(arr)
+    return MIN_PWR_DB + norm * span
 
 
-# ---- georeferencing (mirrors main.py) --------------------------------------
+# ---- georeferencing (side-scan aware) --------------------------------------
 
 def georeference(detection, ping, vehicle):
+    """Side-scan georeferencing.
+
+    For a combined swath the nadir is at ping['nadir_col']. A detection's
+    horizontal offset from nadir gives its range; whether it's left or right
+    of nadir decides which side of the track (heading ± 90°) it lies on.
+    For a single channel nadir_col is 0, so range = x * mm_per_sample and the
+    detection is on ping['side'].
+    """
     fix = vehicle.fix
     if fix is None:
         return None
-    range_m = (ping["start_mm"] + detection["x"] * ping["mm_per_sample"]) / 1000.0
-    bearing = math.radians(ping["transducer_heading_deg"])
+
+    nadir_col = ping.get("nadir_col", 0)
+    offset    = detection["x"] - nadir_col          # +starboard, -port
+    range_m   = abs(offset) * ping["mm_per_sample"] / 1000.0
+
+    heading = ping["transducer_heading_deg"]
+    if nadir_col > 0:
+        # combined swath: side from offset sign
+        side_bearing = heading + 90.0 if offset >= 0 else heading - 90.0
+    else:
+        # single channel: caller tells us which side
+        side_bearing = heading + (90.0 if ping.get("side", "stbd") == "stbd" else -90.0)
+
+    bearing = math.radians(side_bearing % 360.0)
     ref_lat, ref_lon = fix["lat"], fix["lon"]
     dlat = range_m * math.cos(bearing) / 111_111.0
     dlon = range_m * math.sin(bearing) / (111_111.0 * math.cos(math.radians(ref_lat)))
     return ref_lat + dlat, ref_lon + dlon
 
 
-# ---- display (mirrors main.py) ---------------------------------------------
+# ---- display ---------------------------------------------------------------
+
+def _draw(objects, ping, image, vehicle):
+    display = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+
+    # nadir line
+    nadir_col = ping.get("nadir_col", 0)
+    if nadir_col > 0:
+        cv2.line(display, (nadir_col, 0), (nadir_col, display.shape[0]),
+                 (60, 60, 60), 1)
+
+    for obj in objects:
+        x, y, w, h = obj["x"], obj["y"], obj["w"], obj["h"]
+        if obj.get("source") == "hough":
+            cx, cy, r = x + w // 2, y + h // 2, w // 2
+            cv2.circle(display, (cx, cy), r, (255, 255, 0), 1)
+        else:
+            cv2.rectangle(display, (x, y), (x + w, y + h), (0, 255, 0), 1)
+
+    fix = vehicle.fix
+    gps_str = f"gps=({fix['lat']:.5f},{fix['lon']:.5f})" if fix else "no-fix"
+    label = f"ping #{ping['ping_number']}  {gps_str}  {len(objects)} detection(s)"
+    cv2.putText(display, label, (4, 14), cv2.FONT_HERSHEY_SIMPLEX,
+                0.4, (0, 255, 0), 1, cv2.LINE_AA)
+    cv2.imshow(_WINDOW, display)
+    cv2.waitKey(1)
+
 
 def make_on_frame(vehicle):
-    def on_frame(objects, ping, image):
-        display = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
-        for obj in objects:
-            x, y, w, h = obj["x"], obj["y"], obj["w"], obj["h"]
-            if obj.get("source") == "hough":
-                cx, cy, r = x + w // 2, y + h // 2, w // 2
-                cv2.circle(display, (cx, cy), r, (255, 255, 0), 1)
-            else:
-                cv2.rectangle(display, (x, y), (x + w, y + h), (0, 255, 0), 1)
-
-        fix = vehicle.fix
-        gps_str = f"gps=({fix['lat']:.5f},{fix['lon']:.5f})" if fix else "no-fix"
-        label = f"ping #{ping['ping_number']}  {gps_str}  {len(objects)} detection(s)"
-        cv2.putText(display, label, (4, 14), cv2.FONT_HERSHEY_SIMPLEX,
-                    0.4, (0, 255, 0), 1, cv2.LINE_AA)
-        cv2.imshow(_WINDOW, display)
-        cv2.waitKey(1)
-    return on_frame
+    return lambda objects, ping, image: _draw(objects, ping, image, vehicle)
 
 
 def make_on_detection(vehicle):
     def on_detection(objects, ping, image):
         if image is not None:
-            make_on_frame(vehicle)(objects, ping, image)
+            _draw(objects, ping, image, vehicle)
 
         if not objects:
             print(f"[detect] ping #{ping['ping_number']}: clear")
@@ -102,98 +139,119 @@ def make_on_detection(vehicle):
         )
         print(f"[detect] ping #{ping['ping_number']}: {len(objects)} object(s){gps_tag}")
         for obj in objects:
-            range_mm = ping["start_mm"] + obj["x"] * ping["mm_per_sample"]
-            latlon   = georeference(obj, ping, vehicle)
-            loc      = f"({latlon[0]:.6f},{latlon[1]:.6f})" if latlon else "no-fix"
+            nadir   = ping.get("nadir_col", 0)
+            range_m = abs(obj["x"] - nadir) * ping["mm_per_sample"] / 1000.0
+            latlon  = georeference(obj, ping, vehicle)
+            loc     = f"({latlon[0]:.6f},{latlon[1]:.6f})" if latlon else "no-fix"
             print(
-                f"    range~{range_mm/1000:.1f}m  "
-                f"bearing={ping['transducer_heading_deg']:.1f}°  "
-                f"size={obj['w']}x{obj['h']}px  "
-                f"src={obj.get('source','?')}  "
-                f"latlon={loc}"
+                f"    range~{range_m:.1f}m  size={obj['w']}x{obj['h']}px  "
+                f"src={obj.get('source','?')}  latlon={loc}"
             )
     return on_detection
 
 
 # ---- XTF iteration ---------------------------------------------------------
 
-def iter_pings(path):
-    """Yield (ping_dict, ping_interval_sec) for every sonar ping in the file."""
-    file_header, packets = pyxtf.xtf_read(path)
+def _seconds_of_day(p):
+    return (float(p.Hour) * 3600 + float(p.Minute) * 60
+            + float(p.Second) + float(p.HSeconds) / 100.0)
 
+
+def iter_pings(path, channel="both"):
+    """Yield (ping_dict, interval_sec, lat, lon) for every sonar ping.
+
+    channel: "both" (combined swath), 0 (port only), or 1 (starboard only).
+    """
+    fh, packets = pyxtf.xtf_read(path)
     if XTFHeaderType.sonar not in packets:
         raise ValueError("No sonar channel found in XTF file.")
+    sonar = packets[XTFHeaderType.sonar]
 
-    sonar_packets = packets[XTFHeaderType.sonar]
+    sample_fmt = XTFSampleFormat(fh.ChanInfo[0].SampleFormat)
+    prev_t = None
 
-    # Determine sample format from the first channel header
-    first = sonar_packets[0]
-    chan_hdr   = first.ping_chan_headers[0]
-    sample_fmt = XTFSampleFormat(chan_hdr.SampleFormat) if hasattr(chan_hdr, "SampleFormat") else XTFSampleFormat.word
+    for i, p in enumerate(sonar):
+        chans   = p.ping_chan_headers
+        n_chan  = len(p.data)
 
-    prev_time = None
+        # slant range from channel header (metres)
+        slant_m = float(chans[0].SlantRange) or 25.0
 
-    for i, pkt in enumerate(sonar_packets):
-        ph       = pkt.ping_header
-        ch       = pkt.ping_chan_headers[0]
-        raw_data = pkt.data[0]
+        if channel == "both" and n_chan >= 2:
+            port = _to_db(p.data[0], sample_fmt)
+            stbd = _to_db(p.data[1], sample_fmt)
+            samples_db = np.concatenate([port[::-1], stbd])
+            num        = len(samples_db)
+            nadir_col  = len(port)
+            mm_per_sample = (slant_m * 1000.0) / len(port)
+            side = None
+        else:
+            idx = int(channel) if channel != "both" else 0
+            idx = min(idx, n_chan - 1)
+            samples_db    = _to_db(p.data[idx], sample_fmt)
+            num           = len(samples_db)
+            nadir_col     = 0
+            mm_per_sample = (slant_m * 1000.0) / num
+            side          = "stbd" if idx == 1 else "port"
 
-        num_samples = int(ch.NumSamples)
-        slant_m     = float(ch.SlantRange)
-        if slant_m <= 0:
-            slant_m = 10.0   # fallback: 10 m range
+        t        = _seconds_of_day(p)
+        interval = (t - prev_t) if (prev_t is not None and t > prev_t) else 0.05
+        interval = min(interval, 1.0)
+        prev_t   = t
 
-        length_mm    = slant_m * 1000.0
-        mm_per_sample = length_mm / num_samples if num_samples > 0 else 1.0
-        samples_db   = _to_db(raw_data[:num_samples], sample_fmt)
-
-        # Fractional seconds into the day for interval estimation
-        t = float(ph.Hour) * 3600 + float(ph.Minute) * 60 + float(ph.Second) + float(ph.HSeconds) / 100.0
-        interval = (t - prev_time) if (prev_time is not None and t > prev_time) else 0.05
-        interval = min(interval, 1.0)   # cap at 1 s in case of time jumps
-        prev_time = t
+        heading = float(p.SensorHeading) or float(p.ShipGyro)
 
         ping = {
             "type":                   "ping",
-            "ping_number":            int(ph.PingNumber) if ph.PingNumber else i,
+            "ping_number":            int(p.PingNumber) if p.PingNumber else i,
             "start_mm":               0,
-            "length_mm":              length_mm,
-            "num_results":            num_samples,
+            "length_mm":              slant_m * 1000.0,
+            "num_results":            num,
             "timestamp_ms":           int(t * 1000),
-            "vehicle_heading_deg":    float(ph.ShipGyro),
-            "transducer_heading_deg": float(ph.SensorHeading) if float(ph.SensorHeading) else float(ph.ShipGyro),
+            "vehicle_heading_deg":    heading,
+            "transducer_heading_deg": heading,
             "min_pwr_db":             MIN_PWR_DB,
             "max_pwr_db":             MAX_PWR_DB,
-            "samples_db":             samples_db,
+            "samples_db":             samples_db.tolist(),
             "mm_per_sample":          mm_per_sample,
+            "nadir_col":              nadir_col,
         }
+        if side:
+            ping["side"] = side
 
-        lat = float(ph.SensorYcoordinate) or float(ph.ShipYcoordinate)
-        lon = float(ph.SensorXcoordinate) or float(ph.ShipXcoordinate)
-
+        lat = float(p.SensorYcoordinate) or float(p.ShipYcoordinate)
+        lon = float(p.SensorXcoordinate) or float(p.ShipXcoordinate)
         yield ping, interval, lat, lon
 
 
 # ---- probe -----------------------------------------------------------------
 
 def probe(path):
-    """Print file metadata without running detection."""
-    file_header, packets = pyxtf.xtf_read(path)
-
+    fh, packets = pyxtf.xtf_read(path)
     print(f"\nFile: {path}")
-    print(f"Sonar type:  {file_header.SonarType}")
-    print(f"Channels:    {file_header.NumberOfSonarChannels}")
-    for i in range(file_header.NumberOfSonarChannels):
-        ci = file_header.ChanInfo[i]
-        print(f"  Channel {i}: {ci.NumSamples} samples  {ci.SlantRange:.1f} m range")
+    print(f"Sonar type:  {fh.SonarType}")
+    print(f"Channels:    {fh.NumberOfSonarChannels}")
+    for i in range(max(1, fh.NumberOfSonarChannels)):
+        ci = fh.ChanInfo[i]
+        print(f"  Channel {i}: fmt={XTFSampleFormat(ci.SampleFormat).name}  "
+              f"bytes/sample={ci.BytesPerSample}  type={ci.TypeOfChannel}")
 
     if XTFHeaderType.sonar in packets:
-        pings = packets[XTFHeaderType.sonar]
-        print(f"Pings:       {len(pings)}")
-        ph = pings[0].ping_header
-        print(f"First ping:  lat={ph.ShipYcoordinate:.6f}  lon={ph.ShipXcoordinate:.6f}  hdg={ph.ShipGyro:.1f}°")
-        ph = pings[-1].ping_header
-        print(f"Last ping:   lat={ph.ShipYcoordinate:.6f}  lon={ph.ShipXcoordinate:.6f}  hdg={ph.ShipGyro:.1f}°")
+        sonar = packets[XTFHeaderType.sonar]
+        print(f"Pings:       {len(sonar)}")
+        ch0 = sonar[0].ping_chan_headers[0]
+        print(f"Samples/ping: {ch0.NumSamples}   Slant range: {ch0.SlantRange:.1f} m")
+        for label, p in (("First", sonar[0]), ("Last", sonar[-1])):
+            print(f"{label} ping: lat={p.SensorYcoordinate:.6f}  "
+                  f"lon={p.SensorXcoordinate:.6f}  hdg={p.SensorHeading:.1f}°  "
+                  f"time={p.Hour:02d}:{p.Minute:02d}:{p.Second:02d}")
+        lats = [pp.SensorYcoordinate for pp in sonar if pp.SensorYcoordinate]
+        lons = [pp.SensorXcoordinate for pp in sonar if pp.SensorXcoordinate]
+        if lats:
+            print(f"Lat range:   {min(lats):.6f} .. {max(lats):.6f}")
+            print(f"Lon range:   {min(lons):.6f} .. {max(lons):.6f}")
+        dur = _seconds_of_day(sonar[-1]) - _seconds_of_day(sonar[0])
+        print(f"Duration:    {dur:.0f} s  (~{len(sonar)/dur:.1f} pings/s)" if dur > 0 else "")
     print()
 
 
@@ -204,8 +262,10 @@ def main():
     ap.add_argument("xtf", help="Path to .xtf file")
     ap.add_argument("--speed", type=float, default=1.0,
                     help="Playback speed multiplier (0 = no delay, default 1.0)")
+    ap.add_argument("--channel", default="both", choices=["both", "0", "1"],
+                    help="Channel(s) to process (default: both = combined swath)")
     ap.add_argument("--probe", action="store_true",
-                    help="Print file info and exit without running detection")
+                    help="Print file info and exit")
     args = ap.parse_args()
 
     if args.probe:
@@ -213,32 +273,40 @@ def main():
         return
 
     vehicle = VehicleState()
-    on_frame     = make_on_frame(vehicle)
-    on_detection = make_on_detection(vehicle)
+    stream  = iter_pings(args.xtf, args.channel)
+
+    # Peek the first ping so we can size the nadir mask to this file. For the
+    # combined swath the nadir/water-column gap sits at nadir_col; suppress it
+    # so it doesn't generate false detections.
+    try:
+        first = next(stream)
+    except StopIteration:
+        print("[replay] no pings in file")
+        return
+    nadir_col = first[0].get("nadir_col", 0)
+    mask_band = (nadir_col, 70) if nadir_col > 0 else None
 
     detector = WaterfallDetector(
         max_rows=500,
         detect_every=50,
         display_every=5,
-        on_detection=on_detection,
-        on_frame=on_frame,
+        mask_band=mask_band,
+        on_detection=make_on_detection(vehicle),
+        on_frame=make_on_frame(vehicle),
     )
 
     print(f"[replay] {args.xtf}")
-    print(f"[replay] speed={args.speed}x  (Ctrl-C to stop)")
+    print(f"[replay] channel={args.channel}  speed={args.speed}x  "
+          f"mask_band={mask_band}  (Ctrl-C to stop)")
 
     try:
-        for ping, interval, lat, lon in iter_pings(args.xtf):
-            # Update vehicle state from XTF navigation data
+        for ping, interval, lat, lon in itertools.chain([first], stream):
             if lat and lon:
                 vehicle.update_gps(lat=lat, lon=lon, alt_m=0)
             vehicle.update_heading(ping["vehicle_heading_deg"])
-
             detector.add_ping(ping)
-
             if args.speed > 0:
                 time.sleep(interval / args.speed)
-
     except KeyboardInterrupt:
         print("\n[replay] stopped")
     finally:

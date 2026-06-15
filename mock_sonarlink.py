@@ -41,8 +41,9 @@ NUM_SAMPLES = 200
 LENGTH_MM = 10_000
 
 
-def _build_packet(ping_number, target_sample=None, num_results=NUM_SAMPLES, length_mm=LENGTH_MM):
-    rng = np.random.default_rng(ping_number)  # deterministic per ping
+def _build_packet(ping_number, target_sample=None, num_results=NUM_SAMPLES,
+                  length_mm=LENGTH_MM, channel_number=0):
+    rng = np.random.default_rng(ping_number * 2 + channel_number)  # deterministic
     samples = rng.integers(0, 12_000, num_results).tolist()
 
     if target_sample is not None:
@@ -60,7 +61,7 @@ def _build_packet(ping_number, target_sample=None, num_results=NUM_SAMPLES, leng
     msg.gain_index = 6
     msg.num_results = num_results
     msg.sos_dmps = 15_000
-    msg.channel_number = 0
+    msg.channel_number = channel_number
     msg.reserved = 0
     msg.pulse_duration_sec = 0.000125
     msg.analog_gain = 1.0
@@ -131,13 +132,16 @@ async def handle_ws(request):
         ping_number = 0
         while not ws.closed:
             target = 100 if (ping_number % 300) in range(100, 200) else None
-            pkt = _build_packet(
-                ping_number,
-                target_sample=target,
-                num_results=ping_params.get("num_results", NUM_SAMPLES),
-                length_mm=ping_params.get("length_mm", LENGTH_MM),
-            )
-            await ws.send_bytes(pkt)
+            # Emit both side-scan channels per ping, like the real OmniScan
+            for channel in (0, 1):
+                pkt = _build_packet(
+                    ping_number,
+                    target_sample=target if channel == 1 else None,
+                    num_results=ping_params.get("num_results", NUM_SAMPLES),
+                    length_mm=ping_params.get("length_mm", LENGTH_MM),
+                    channel_number=channel,
+                )
+                await ws.send_bytes(pkt)
             ping_number += 1
             await asyncio.sleep(0.05)  # 20 Hz
 

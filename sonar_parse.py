@@ -91,6 +91,7 @@ class OmniScanParser:
         return {
             "type":                "ping",
             "ping_number":         msg.ping_number,
+            "channel_number":      int(msg.channel_number),
             "start_mm":            msg.start_mm,
             "length_mm":           msg.length_mm,
             "num_results":         n,
