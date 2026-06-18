@@ -9,3 +9,12 @@ __pycache__/
 *.xtf
 *.png
 .playwright-mcp/
+
+# Local agent/editor settings — not for the shared repo
+.claude/
+
+# Generated hand-off artifacts (re-created each run)
+contacts_coords.py
+contacts.geojson
+contacts.csv
+revisit.plan

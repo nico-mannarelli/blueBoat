@@ -35,11 +35,37 @@ import cv2
 from sonar_ws import SonarLinkClient
 from sonar_parse import OmniScanParser
 from sonar_detect import WaterfallDetector
+from sonar_dashboard import SonarDashboard
+from detection_log import DetectionLog
 from mavlink_client import MAVLinkClient, VehicleState
+from planner_handoff import send_to_planner
 
 HOST     = os.environ.get("HOST", "192.168.2.2")
 PORT     = int(os.environ.get("SONAR_PORT", 7077))
 MAV_PORT = int(os.environ.get("MAV_PORT",   6040))
+
+# Display palette: "blue" (default), "amber" (SonarView-style), or "gray". Cosmetic only.
+PALETTE  = os.environ.get("SONAR_PALETTE", "blue")
+
+# Detection on/off. NO_DETECT=1 shows clean imagery only — no markers, no
+# contact list. Leave it off (default) when you need the coord list for handoff.
+NO_DETECT = os.environ.get("NO_DETECT", "0") not in ("0", "", "false", "False")
+# If set, write the contact list as a Python array (coords = [(lat, lon, 0), ...])
+# to this path at the end of the run. e.g. COORDS_OUT=contacts_coords.py
+COORDS_OUT = os.environ.get("COORDS_OUT")
+# Optional: keep only the N largest contacts by detection area (e.g.
+# COORDS_LARGEST=50) and drop contacts seen on fewer than COORDS_MIN_HITS pings.
+COORDS_LARGEST = os.environ.get("COORDS_LARGEST")
+COORDS_LARGEST = int(COORDS_LARGEST) if COORDS_LARGEST else None
+COORDS_MIN_HITS = int(os.environ.get("COORDS_MIN_HITS", "1"))
+
+# Autonomous handoff: at end of survey, send the contacts to your coworker's
+# revisit planner (see planner_handoff.py). On by default; SEND_TO_PLANNER=0
+# disables it. We send the largest PLANNER_LARGEST contacts (default 50), each
+# seen on >= PLANNER_MIN_HITS pings (default 2, to drop one-ping flickers).
+SEND_TO_PLANNER = os.environ.get("SEND_TO_PLANNER", "1") not in ("0", "", "false", "False")
+PLANNER_LARGEST = int(os.environ.get("PLANNER_LARGEST", "50"))
+PLANNER_MIN_HITS = int(os.environ.get("PLANNER_MIN_HITS", "2"))
 
 # Side-scan look direction per channel, as an offset from vehicle heading.
 # NOTE: port=0 / starboard=1 mapping mirrors the XTF channel order but should
@@ -48,9 +74,11 @@ CHANNEL_SIDE_OFFSET = {0: -90.0, 1: +90.0}
 
 # ---- shared state ----------------------------------------------------------
 
-vehicle   = VehicleState()   # updated by mavlink_client thread
-parser    = OmniScanParser()
-detectors = {}               # channel_number -> WaterfallDetector
+vehicle    = VehicleState()   # updated by mavlink_client thread
+parser     = OmniScanParser()
+detectors  = {}               # channel_number -> WaterfallDetector
+dashboards = {}               # channel_number -> SonarDashboard
+log        = DetectionLog(merge_radius_m=3.0)   # de-duplicated mission contacts
 
 
 # ---- georeferencing --------------------------------------------------------
@@ -79,33 +107,47 @@ def georeference(detection, ping):
 # ---- live display ----------------------------------------------------------
 
 def _window_name(channel):
-    return f"OmniScan 450 — channel {channel}"
+    return f"OmniScan 450 - channel {channel}"
+
+
+def _dashboard(channel):
+    """One dashboard window per channel; all share the single contact log."""
+    d = dashboards.get(channel)
+    if d is None:
+        d = SonarDashboard(title=_window_name(channel), palette=PALETTE,
+                           source_label=f"{HOST}:{PORT}  ch{channel}", mode="LIVE")
+        dashboards[channel] = d
+    return d
 
 
 def draw(objects, ping, image):
     channel = ping.get("channel_number", 0)
-    display = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
-    for obj in objects:
-        x, y, w, h = obj["x"], obj["y"], obj["w"], obj["h"]
-        if obj.get("source") == "hough":
-            cx, cy, r = x + w // 2, y + h // 2, w // 2
-            cv2.circle(display, (cx, cy), r, (255, 255, 0), 1)
-        else:
-            cv2.rectangle(display, (x, y), (x + w, y + h), (0, 255, 0), 1)
-
     fix = vehicle.fix
-    gps_str = f"gps=({fix['lat']:.5f},{fix['lon']:.5f})" if fix else "no-fix"
-    label = (f"ch{channel}  ping #{ping['ping_number']}  {gps_str}  "
-             f"{len(objects)} detection(s)")
-    cv2.putText(display, label, (4, 14), cv2.FONT_HERSHEY_SIMPLEX,
-                0.4, (0, 255, 0), 1, cv2.LINE_AA)
-    cv2.imshow(_window_name(channel), display)
-    cv2.waitKey(1)
+    if fix:
+        log.add_fix(fix["lat"], fix["lon"])
+    frame = _dashboard(channel).render(image, objects, ping, vehicle, log)
+    cv2.imshow(_window_name(channel), frame)
+    if cv2.waitKey(1) & 0xFF in (ord("q"), 27):
+        raise KeyboardInterrupt
 
 
 # ---- detection callback ----------------------------------------------------
 
 def handle_detection(objects, ping, image):
+    # annotate each detection with range + contact id and fold it into the
+    # de-duplicated contact log (log.contacts is the mission's hand-off list)
+    for obj in objects:
+        range_mm = ping["start_mm"] + obj["x"] * ping["mm_per_sample"]
+        obj["range_m"] = range_mm / 1000.0
+        latlon = georeference(obj, ping)
+        if latlon:
+            c = log.add(latlon[0], latlon[1], range_m=obj["range_m"],
+                        size=(obj["w"], obj["h"]),
+                        source=obj.get("source", "cfar"),
+                        score=obj.get("score", 0.0),
+                        ping_number=ping["ping_number"])
+            obj["cid"] = c["id"]
+
     if image is not None:
         draw(objects, ping, image)
 
@@ -116,24 +158,24 @@ def handle_detection(objects, ping, image):
 
     fix     = vehicle.fix
     gps_tag = (
-        f"  gps=({fix['lat']:.6f}, {fix['lon']:.6f})  hdg={fix['heading_deg']:.1f}°"
+        f"  gps=({fix['lat']:.6f}, {fix['lon']:.6f})  hdg={fix['heading_deg']:.1f}deg"
         if fix else "  gps=no-fix"
     )
     print(f"[detect] ch{channel} ping #{ping['ping_number']}: "
           f"{len(objects)} object(s){gps_tag}")
 
     for obj in objects:
-        range_mm = ping["start_mm"] + obj["x"] * ping["mm_per_sample"]
-        latlon   = georeference(obj, ping)
-        loc      = f"({latlon[0]:.6f}, {latlon[1]:.6f})" if latlon else "no-fix"
+        latlon = georeference(obj, ping)
+        loc    = f"({latlon[0]:.6f}, {latlon[1]:.6f})" if latlon else "no-fix"
         print(
-            f"    range~{range_mm/1000:.1f}m  "
+            f"    range~{obj.get('range_m', 0):.1f}m  "
             f"size={obj['w']}x{obj['h']}px  "
-            f"src={obj.get('source','?')}  "
+            f"src={obj.get('source','?')}  contact=#{obj.get('cid','-')}  "
             f"latlon={loc}"
         )
 
-    # TODO: write detections to GeoJSON / post to operator dashboard
+    # The full mission contact list is `log` — hand it to your revisit planner.
+    # See HANDOFF.md for sending log.contacts onward to MAVLink.
 
 
 # ---- sonar pipeline --------------------------------------------------------
@@ -146,6 +188,7 @@ def _get_detector(channel):
             max_rows=500,
             detect_every=50,
             display_every=5,
+            detector="off" if NO_DETECT else "cfar",
             on_detection=handle_detection,
             on_frame=draw,
         )
@@ -182,6 +225,28 @@ def main():
     try:
         sonar.run_forever(auto_reconnect=True)
     finally:
+        print(f"\n[main] mission complete: {len(log)} unique contact(s)")
+        for r in log.to_records():
+            print(f"    #{r['id']:02d}  ({r['lat']:.6f}, {r['lon']:.6f})  "
+                  f"range~{r['range_m']}m  {r['source']}  seen {r['hits']}x")
+        if len(log):
+            print("[main] hand off log.to_records() / to_geojson() / to_csv() "
+                  "to your revisit planner (see HANDOFF.md)")
+        if COORDS_OUT:
+            literal = log.to_coords_literal(min_hits=COORDS_MIN_HITS,
+                                            largest=COORDS_LARGEST)
+            with open(COORDS_OUT, "w") as f:
+                f.write(literal + "\n")
+            n = literal.count("(")
+            print(f"[main] wrote {n} coord(s) to {COORDS_OUT}"
+                  + (f" (largest {COORDS_LARGEST} by area)" if COORDS_LARGEST else ""))
+        # End-of-survey: hand the largest contacts to the revisit planner so it
+        # can plan a revisit run after this mission (see planner_handoff.py).
+        if SEND_TO_PLANNER and len(log):
+            coords = log.to_coords(largest=PLANNER_LARGEST, min_hits=PLANNER_MIN_HITS)
+            print(f"[main] sending {len(coords)} contact(s) to revisit planner "
+                  f"(largest {PLANNER_LARGEST} by area, hits >= {PLANNER_MIN_HITS})")
+            send_to_planner(coords)
         cv2.destroyAllWindows()
 
 

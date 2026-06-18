@@ -33,6 +33,9 @@ Data flows: **raw bytes → parsed pings → waterfall image → detections → 
 | `sonar_parse.py` | Parses Cerulean Ping packets into dicts. Decodes `os_mono_profile` (sonar samples + `channel_number`) and `MAVLINK_WRAPPER` (embedded GPS). |
 | `sonar_detect.py` | The detection engine (`WaterfallDetector`). Builds the flat-fielded waterfall and runs **CFAR** anomaly detection (adaptive per-pixel threshold, no baseline or labels needed) with optional shadow gating, plus an alternate classical Hough + ROI detector. NMS, nadir masking, and box-merging included. **All detection logic lives here.** |
 | `mavlink_client.py` | Connects to mavlink2rest (`:6040`) for GPS + heading, kept in a thread-safe `VehicleState`. |
+| `sonar_dashboard.py` | Composes the operator window: large waterfall, range ruler, colour bar, nadir line, labeled detection boxes, telemetry/compass HUD, live contacts list, and a track mini-map. numpy + OpenCV only, cosmetic (replaces the bare `cv2.imshow`). |
+| `detection_log.py` | `DetectionLog` — accumulates georeferenced detections into a de-duplicated in-memory list of *contacts* (the mission hand-off list). `to_records/to_geojson/to_csv` helpers. |
+| `sonar_display.py` | Palette LUTs + gamma for the waterfall colourisation (used by the dashboard). |
 
 `main.py`, `replay_xtf.py`, and `mock_sonarlink.py` are three different *sources*
 feeding the same detector: the live boat, a recorded file, or a simulator.
@@ -68,7 +71,16 @@ HOST=127.0.0.1 python main.py
 ### Synthetic detector check
 ```bash
 python simulate.py                  # noise + one bright target → waterfall.png
+python preview_dashboard.py         # headless dashboard render → dashboard_preview.png
 ```
+
+The live windows (`main.py`, `replay_xtf.py`) now render through
+`sonar_dashboard.py` — a composited operator console rather than a raw grayscale
+window. Press **Q** (or Esc) to quit. Every detection is folded into a
+de-duplicated contact list (`detection_log.py`); the list is printed at the end
+of a run. See **HANDOFF.md** for sending those contacts to a revisit planner /
+MAVLink, and **RESEARCH.md** for the ML-vs-signal-processing analysis and how to
+use the Dell XR4000 edge server.
 
 ## Tests
 
