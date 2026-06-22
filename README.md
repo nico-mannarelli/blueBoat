@@ -34,11 +34,16 @@ Data flows: **raw bytes → parsed pings → waterfall image → detections → 
 | `sonar_detect.py` | The detection engine (`WaterfallDetector`). Builds the flat-fielded waterfall and runs **CFAR** anomaly detection (adaptive per-pixel threshold, no baseline or labels needed) with optional shadow gating, plus an alternate classical Hough + ROI detector. NMS, nadir masking, and box-merging included. **All detection logic lives here.** |
 | `mavlink_client.py` | Connects to mavlink2rest (`:6040`) for GPS + heading, kept in a thread-safe `VehicleState`. |
 | `sonar_dashboard.py` | Composes the operator window: large waterfall, range ruler, colour bar, nadir line, labeled detection boxes, telemetry/compass HUD, live contacts list, and a track mini-map. numpy + OpenCV only, cosmetic (replaces the bare `cv2.imshow`). |
-| `detection_log.py` | `DetectionLog` — accumulates georeferenced detections into a de-duplicated in-memory list of *contacts* (the mission hand-off list). `to_records/to_geojson/to_csv` helpers. |
+| `detection_log.py` | `DetectionLog` — accumulates georeferenced detections into a de-duplicated in-memory list of *contacts* (the mission hand-off list). `to_records/to_coords/to_geojson/to_csv` helpers. |
 | `sonar_display.py` | Palette LUTs + gamma for the waterfall colourisation (used by the dashboard). |
+| `export_coords.py` | Writes the contacts to an importable Python file (`coords = [(lat, lon, 0), ...]`) for hand-off. |
+| `planner_handoff.py` | The single seam to a downstream revisit *planner*: at end of survey `main.py` passes the contacts here; wire your planner's entry point into `_resolve_entry()`. |
 
 `main.py`, `replay_xtf.py`, and `mock_sonarlink.py` are three different *sources*
 feeding the same detector: the live boat, a recorded file, or a simulator.
+`label_xtf.py` / `score_detector.py` hand-label a scan and score the detector
+(precision/recall) against those labels; `preview_dashboard.py` renders the
+dashboard headlessly.
 
 ## Running
 
@@ -55,8 +60,39 @@ python replay_xtf.py scan.xtf               # real-time playback
 python replay_xtf.py scan.xtf --speed 4     # 4x faster
 python replay_xtf.py scan.xtf --speed 0     # max speed, no delay
 python replay_xtf.py scan.xtf --channel 1   # single channel (default: both, combined swath)
+python replay_xtf.py scan.xtf --detector blob   # try a different detector (cfar|blob|roi|classical|both)
 ```
 Replays a SonarView `.xtf` through the exact production detector.
+
+### Display palette
+The live windows colourise the waterfall. Choose a palette with the
+`SONAR_PALETTE` env var — `blue` (default), `amber` (SonarView-style), or `gray`:
+```bash
+SONAR_PALETTE=amber python replay_xtf.py scan.xtf
+```
+Purely cosmetic — detection is unaffected.
+
+## Contact hand-off
+
+Every run produces a de-duplicated list of *contacts* (georeferenced lat/lon).
+`replay_xtf.py` writes them to **`contacts.py`** by default — an importable array
+another program uses with one line:
+```python
+from contacts import coords        # coords = [(lat, lon, 0), ...]
+```
+`contacts.py` is committed (starting empty), so the import always works even
+before the first scan. Each run overwrites it.
+
+```bash
+python replay_xtf.py scan.xtf                          # writes contacts.py
+python replay_xtf.py scan.xtf --coords out.py          # different filename
+python replay_xtf.py scan.xtf --coords-largest 50 --coords-min-hits 2   # only the real contacts
+python replay_xtf.py scan.xtf --no-coords              # skip writing
+```
+
+Live (`main.py`) does the same via `COORDS_OUT=...`, and at end of survey hands
+the largest contacts to a revisit planner through `planner_handoff.py` (wire your
+planner's function into `_resolve_entry()`).
 
 ### Without hardware (mock boat)
 Two terminals:

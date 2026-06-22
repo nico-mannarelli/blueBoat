@@ -1,7 +1,7 @@
 """
 export_coords.py
-Write the survey's contact coords to a clean, importable Python file so a
-coworker's script can pull them in with one line:
+Write the survey's contact coords to a clean, importable Python file so
+another script can pull them in with one line:
 
     from contacts_coords import coords      # [(lat, lon, 0), ...]
 
@@ -11,7 +11,44 @@ This is the single writer used by the end-of-survey hand-off (main.py) and the
 replay tool; planner_handoff.py falls back to it when no planner is wired.
 """
 
+import os
+import re
 import time
+
+
+def populate_coords_in_file(coords, path, var="coords"):
+    """Fill an existing `var = [...]` assignment in `path` with the survey coords,
+    leaving the rest of that file untouched.
+
+    Use this when another program already has a hard-coded `coords = [...]` array
+    at the top and just wants the numbers filled in each run — we replace only
+    that one assignment, not the whole file. A .bak copy is written first since
+    we're editing someone else's source. Leading indentation is preserved.
+
+    If the file doesn't exist or has no `var = [...]` assignment, we fall back to
+    writing a fresh importable module. Returns (path, count, mode) where mode is
+    "in-place" or "created"."""
+    new_lines = [f"({lat}, {lon}, {third})," for lat, lon, third in coords]
+
+    if os.path.exists(path):
+        text = open(path).read()
+        pat = re.compile(rf"^([ \t]*){re.escape(var)}\s*=\s*\[.*?\]",
+                         re.MULTILINE | re.DOTALL)
+        m = pat.search(text)
+        if m:
+            indent = m.group(1)
+            body = ("[\n"
+                    + "".join(f"{indent}    {ln}\n" for ln in new_lines)
+                    + f"{indent}]")
+            assignment = f"{indent}{var} = {body}"
+            with open(path + ".bak", "w") as b:   # safety backup
+                b.write(text)
+            with open(path, "w") as f:
+                f.write(pat.sub(lambda _: assignment, text, count=1))
+            return path, len(coords), "in-place"
+
+    write_coords_file(coords, path=path, var=var)
+    return path, len(coords), "created"
 
 
 def render_coords_module(coords, var="coords", largest=None, min_hits=None):

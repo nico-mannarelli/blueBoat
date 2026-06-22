@@ -1,30 +1,30 @@
 """
 planner_handoff.py
-The single seam between this survey program and your coworker's revisit
-*planner*. When a live survey ends, main.py hands the largest-N contacts here
-and this module gets them to the planner, which builds a revisit plan to run
-*after* the current mission.
+The single seam between this survey program and the revisit *planner*. When a
+live survey ends, main.py hands the largest-N contacts here and this module gets
+them to the planner, which builds a revisit plan to run *after* the current
+mission.
 
-There is exactly ONE thing to wire: point `_call_planner` at her entry point.
-Everything else (selecting/limiting contacts, the end-of-survey trigger) already
-lives in main.py and detection_log.py.
+There is exactly ONE thing to wire: point `_resolve_entry` at the planner's
+entry point. Everything else (selecting/limiting contacts, the end-of-survey
+trigger) already lives in main.py and detection_log.py.
 
 --------------------------------------------------------------------------
-Wiring her script in
+Wiring the planner in
 --------------------------------------------------------------------------
-Her planner consumes a coords array shaped `coords = [(lat, lon, 0), ...]`.
-Pick whichever of these matches how her code is packaged and delete the rest:
+The planner consumes a coords array shaped `coords = [(lat, lon, 0), ...]`.
+Pick whichever of these matches how the planner is packaged and delete the rest:
 
-  1. She exposes a function (e.g. `plan_revisit(coords)` / `send_waypoints`):
-         from her_planner import plan_revisit
-         def _call_planner(coords): return plan_revisit(coords)
+  1. The planner exposes a function (e.g. `plan_revisit(coords)`):
+         from revisit_planner import plan_revisit
+         def _resolve_entry(): return plan_revisit
 
-  2. Her script only reads a coords file on disk:
-         leave PLANNER_ENTRY unset — the fallback writes that file for her
-         (set COORDS_OUT / PLANNER_COORDS_FILE to the path her script imports).
+  2. The planner only reads a coords file on disk:
+         leave PLANNER_ENTRY unset — the fallback writes that file
+         (set COORDS_OUT / PLANNER_COORDS_FILE to the path it imports).
 
-  3. Her entry point is configurable without editing code:
-         set env PLANNER_ENTRY="her_planner:plan_revisit" before running.
+  3. The entry point is configurable without editing code:
+         set env PLANNER_ENTRY="revisit_planner:plan_revisit" before running.
 
 If nothing is wired, this module still writes the coords file so the contacts
 are never lost — the run just prints how to connect the planner.
@@ -33,8 +33,8 @@ are never lost — the run just prints how to connect the planner.
 import importlib
 import os
 
-# Optional: "module:function" string, e.g. "her_planner:plan_revisit".
-# Set this (or edit _resolve_entry below) to point at your coworker's planner.
+# Optional: "module:function" string, e.g. "revisit_planner:plan_revisit".
+# Set this (or edit _resolve_entry below) to point at the revisit planner.
 PLANNER_ENTRY = os.environ.get("PLANNER_ENTRY")
 
 # Where the fallback writes the coords array if the planner isn't wired yet.
@@ -45,8 +45,8 @@ PLANNER_COORDS_FILE = os.environ.get(
 
 def _resolve_entry():
     """Return the planner callable, or None if nothing is wired."""
-    # --- HARD-WIRE HER SCRIPT HERE (option 1) -----------------------------
-    # from her_planner import plan_revisit
+    # --- HARD-WIRE THE PLANNER HERE (option 1) ----------------------------
+    # from revisit_planner import plan_revisit
     # return plan_revisit
     # ----------------------------------------------------------------------
     if PLANNER_ENTRY:                       # option 3: env-configured

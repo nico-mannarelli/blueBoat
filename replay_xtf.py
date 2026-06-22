@@ -317,15 +317,24 @@ def main():
                     help="Display gamma (<1 lifts faint seabed). Default 0.85")
     ap.add_argument("--brightness", type=float, default=0.0,
                     help="Display brightness shift in [-1,1]. Default 0")
-    ap.add_argument("--coords", metavar="PATH", default=None,
-                    help="At the end of the run, write the contacts as a Python "
-                         "array (coords = [(lat, lon, 0), ...]) to this file")
+    ap.add_argument("--coords", metavar="PATH", default="contacts.py",
+                    help="At the end of the run, write the contacts as an "
+                         "importable Python array (coords = [(lat, lon, 0), ...]) "
+                         "to this file. Default: contacts.py. Use --no-coords to skip.")
+    ap.add_argument("--no-coords", dest="coords", action="store_const", const=None,
+                    help="Do not write the coords file.")
     ap.add_argument("--coords-largest", type=int, default=None, dest="coords_largest",
                     help="With --coords, keep only the N largest contacts by "
                          "detection area (e.g. 50). Biggest shapes first.")
     ap.add_argument("--coords-min-hits", type=int, default=1, dest="coords_min_hits",
                     help="With --coords, drop contacts seen on fewer than N pings "
                          "(default 1; use 2 to drop one-ping flickers).")
+    ap.add_argument("--populate", metavar="PATH", default=None,
+                    help="Fill the existing `coords = [...]` array at the top of "
+                         "PATH with this run's contacts, leaving the rest of that "
+                         "file untouched (a .bak backup is written first). Use "
+                         "this when another script already has a hard-coded coords "
+                         "array. Respects --coords-largest / --coords-min-hits.")
     args = ap.parse_args()
 
     if args.probe:
@@ -417,6 +426,14 @@ def main():
             mod = os.path.splitext(os.path.basename(path))[0]
             print(f"[replay] wrote {n} coord(s) to {path} "
                   f"(import with: from {mod} import coords)")
+        if args.populate:
+            from export_coords import populate_coords_in_file
+            coords = log.to_coords(largest=args.coords_largest,
+                                   min_hits=args.coords_min_hits)
+            path, n, mode = populate_coords_in_file(coords, args.populate)
+            print(f"[replay] populated {n} coord(s) into {path} ({mode}); "
+                  f"original backed up to {path}.bak" if mode == "in-place"
+                  else f"[replay] wrote {n} coord(s) to {path} ({mode})")
         cv2.destroyAllWindows()
 
 

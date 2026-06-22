@@ -60,7 +60,7 @@ COORDS_LARGEST = os.environ.get("COORDS_LARGEST")
 COORDS_LARGEST = int(COORDS_LARGEST) if COORDS_LARGEST else None
 COORDS_MIN_HITS = int(os.environ.get("COORDS_MIN_HITS", "1"))
 
-# Autonomous handoff: at end of survey, send the contacts to your coworker's
+# Autonomous handoff: at end of survey, send the contacts to the
 # revisit planner (see planner_handoff.py). On by default; SEND_TO_PLANNER=0
 # disables it. We send the largest PLANNER_LARGEST contacts (default 50), each
 # seen on >= PLANNER_MIN_HITS pings (default 2, to drop one-ping flickers).
