@@ -142,14 +142,20 @@ class DetectionLog:
         largest  : if set, keep only the N biggest contacts by detection area
                    (size_px width*height) — e.g. largest=50 returns the 50
                    largest shapes, the ones most likely to be real objects
-                   (logs, big rocks) rather than small clutter. The returned
-                   list is ordered biggest-first."""
+                   (logs, big rocks) rather than small clutter.
+
+        The list is always returned in **detection order** (the sequence the
+        contacts were first seen as the boat scanned), which follows the survey
+        track — so a mission visiting them sweeps the area instead of jumping
+        around. `largest` only affects *selection*, not order."""
         rows = [r for r in self.to_records() if r["hits"] >= min_hits]
         if largest is not None:
             def area(r):
                 w, h = (list(r["size_px"]) + [0, 0])[:2]
                 return float(w) * float(h)
+            # pick the N largest, then restore detection (track) order
             rows = sorted(rows, key=area, reverse=True)[:largest]
+            rows = sorted(rows, key=lambda r: r["id"])
         return [(r["lat"], r["lon"], third) for r in rows]
 
     def to_coords_literal(self, var="coords", third=0, min_hits=1, largest=None):
