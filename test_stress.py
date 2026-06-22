@@ -14,7 +14,6 @@ import random
 import struct
 import sys
 import threading
-import time
 
 from brping.pingmessage import PingMessage
 import brping.definitions as defs
@@ -159,7 +158,6 @@ print("\n── 3. Parser: zero / edge-case samples ─────────�
 
 # num_results=0: brping can't build a 0-result packet (fixed payload size mismatch),
 # so we can't test via wire format. Verify _decode_profile handles it gracefully instead.
-from sonar_parse import OmniScanParser as _P
 import sonar_parse as _sp
 class _FakeMsg:
     message_id = _sp.OS_MONO_PROFILE

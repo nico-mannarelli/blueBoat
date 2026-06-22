@@ -70,7 +70,6 @@ HOST=127.0.0.1 python main.py
 
 ### Synthetic detector check
 ```bash
-python simulate.py                  # noise + one bright target → waterfall.png
 python preview_dashboard.py         # headless dashboard render → dashboard_preview.png
 ```
 

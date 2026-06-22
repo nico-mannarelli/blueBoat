@@ -184,7 +184,6 @@ def dump_image(path, pings, labels, contacts, tol=40, max_width=1100):
     the false positives can be SEEN, not guessed at. Cyan = hand label (truth),
     green = true-positive contact, red = false-positive contact. Written to a PNG
     so it can be inspected outside the GUI."""
-    import numpy as np
     import cv2
     from label_xtf import waterfall_from_pings
     from sonar_display import colorize
