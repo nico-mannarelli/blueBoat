@@ -77,9 +77,8 @@ The live windows (`main.py`, `replay_xtf.py`) now render through
 `sonar_dashboard.py` — a composited operator console rather than a raw grayscale
 window. Press **Q** (or Esc) to quit. Every detection is folded into a
 de-duplicated contact list (`detection_log.py`); the list is printed at the end
-of a run. See **HANDOFF.md** for sending those contacts to a revisit planner /
-MAVLink, and **RESEARCH.md** for the ML-vs-signal-processing analysis and how to
-use the Dell XR4000 edge server.
+of a run. At end of survey the largest contacts are handed to the revisit
+planner via `planner_handoff.py`.
 
 ## Tests
 

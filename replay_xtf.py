@@ -99,7 +99,7 @@ def georeference(detection, ping, vehicle):
 # ---- display ---------------------------------------------------------------
 # The dashboard (sonar_dashboard.py) composes the whole window; the detection
 # log (detection_log.py) collects de-duplicated contacts that drive both the
-# sidebar list and the end-of-mission hand-off (see HANDOFF.md). Detection is
+# sidebar list and the end-of-mission hand-off. Detection is
 # unchanged — these only consume what the pipeline already produces.
 
 def _show(dashboard, log, objects, ping, image, vehicle):
@@ -423,14 +423,14 @@ def main():
 
 def _summarize(log):
     """Print the de-duplicated contact list at the end of a run. This list is
-    what you hand off to another program — see HANDOFF.md."""
+    what you hand off to another program."""
     print(f"\n[replay] mission complete: {len(log)} unique contact(s)")
     for r in log.to_records():
         print(f"    #{r['id']:02d}  ({r['lat']:.6f}, {r['lon']:.6f})  "
               f"range~{r['range_m']}m  {r['source']}  seen {r['hits']}x")
     if len(log):
         print("[replay] hand off log.to_records() / to_geojson() / to_csv() "
-              "to your revisit planner (see HANDOFF.md)")
+              "to your revisit planner")
 
 
 if __name__ == "__main__":

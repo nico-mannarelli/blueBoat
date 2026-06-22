@@ -15,12 +15,11 @@ strongest sighting's range/size/score.
 
 The result is `log.contacts`: a clean, stable list of unique lat/lon positions
 that is what you actually hand off to another program (a mission planner, a
-revisit-waypoint uploader, a GeoJSON map layer). See HANDOFF.md for how to send
-this list onward to MAVLink.
+revisit-waypoint uploader, a GeoJSON map layer).
 
 Nothing here writes to disk or talks to the vehicle — it is a pure in-memory
-collector. The `to_*` helpers are provided so the hand-off code in HANDOFF.md
-can serialise the list in one call, but they are never invoked automatically.
+collector. The `to_*` helpers serialise the list in one call (used by the
+end-of-survey planner hand-off), but are never invoked automatically.
 """
 
 import math
@@ -113,7 +112,7 @@ class DetectionLog:
     def __len__(self):
         return len(self._contacts)
 
-    # ---- serialisation helpers (used by HANDOFF.md, never auto-called) -----
+    # ---- serialisation helpers (used by the planner hand-off) --------------
 
     def to_records(self):
         """Plain list[dict] of contacts — the simplest thing to hand to another

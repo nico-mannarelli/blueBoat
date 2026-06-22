@@ -174,8 +174,8 @@ def handle_detection(objects, ping, image):
             f"latlon={loc}"
         )
 
-    # The full mission contact list is `log` — hand it to your revisit planner.
-    # See HANDOFF.md for sending log.contacts onward to MAVLink.
+    # The full mission contact list is `log` — handed to the revisit planner at
+    # end of survey via planner_handoff.py.
 
 
 # ---- sonar pipeline --------------------------------------------------------
@@ -231,7 +231,7 @@ def main():
                   f"range~{r['range_m']}m  {r['source']}  seen {r['hits']}x")
         if len(log):
             print("[main] hand off log.to_records() / to_geojson() / to_csv() "
-                  "to your revisit planner (see HANDOFF.md)")
+                  "to your revisit planner")
         if COORDS_OUT:
             literal = log.to_coords_literal(min_hits=COORDS_MIN_HITS,
                                             largest=COORDS_LARGEST)
