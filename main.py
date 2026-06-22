@@ -39,6 +39,7 @@ from sonar_dashboard import SonarDashboard
 from detection_log import DetectionLog
 from mavlink_client import MAVLinkClient, VehicleState
 from planner_handoff import send_to_planner
+from export_coords import export_from_log
 
 HOST     = os.environ.get("HOST", "192.168.2.2")
 PORT     = int(os.environ.get("SONAR_PORT", 7077))
@@ -233,13 +234,12 @@ def main():
             print("[main] hand off log.to_records() / to_geojson() / to_csv() "
                   "to your revisit planner")
         if COORDS_OUT:
-            literal = log.to_coords_literal(min_hits=COORDS_MIN_HITS,
-                                            largest=COORDS_LARGEST)
-            with open(COORDS_OUT, "w") as f:
-                f.write(literal + "\n")
-            n = literal.count("(")
-            print(f"[main] wrote {n} coord(s) to {COORDS_OUT}"
-                  + (f" (largest {COORDS_LARGEST} by area)" if COORDS_LARGEST else ""))
+            path, n = export_from_log(log, path=COORDS_OUT,
+                                      largest=COORDS_LARGEST,
+                                      min_hits=COORDS_MIN_HITS)
+            print(f"[main] wrote {n} coord(s) to {path} "
+                  f"(import with: from {os.path.splitext(os.path.basename(path))[0]} "
+                  "import coords)")
         # End-of-survey: hand the largest contacts to the revisit planner so it
         # can plan a revisit run after this mission (see planner_handoff.py).
         if SEND_TO_PLANNER and len(log):

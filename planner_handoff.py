@@ -60,14 +60,9 @@ def _resolve_entry():
     return None
 
 
-def _coords_literal(coords, var="coords"):
-    pts = ", ".join(f"({lat}, {lon}, {third})" for lat, lon, third in coords)
-    return f"{var} = [{pts}]"
-
-
 def _write_fallback(coords, path):
-    with open(path, "w") as f:
-        f.write(_coords_literal(coords) + "\n")
+    from export_coords import write_coords_file
+    write_coords_file(coords, path=path)
     return path
 
 

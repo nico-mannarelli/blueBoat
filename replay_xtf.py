@@ -410,14 +410,13 @@ def main():
     finally:
         _summarize(log)
         if args.coords:
-            literal = log.to_coords_literal(min_hits=args.coords_min_hits,
-                                            largest=args.coords_largest)
-            with open(args.coords, "w") as f:
-                f.write(literal + "\n")
-            n = literal.count("(")   # number of points written
-            print(f"[replay] wrote {n} coord(s) to {args.coords}"
-                  + (f" (largest {args.coords_largest} by area)"
-                     if args.coords_largest else ""))
+            from export_coords import export_from_log
+            path, n = export_from_log(log, path=args.coords,
+                                      largest=args.coords_largest,
+                                      min_hits=args.coords_min_hits)
+            mod = os.path.splitext(os.path.basename(path))[0]
+            print(f"[replay] wrote {n} coord(s) to {path} "
+                  f"(import with: from {mod} import coords)")
         cv2.destroyAllWindows()
 
 
