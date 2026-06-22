@@ -36,8 +36,10 @@ Data flows: **raw bytes → parsed pings → waterfall image → detections → 
 | `sonar_dashboard.py` | Composes the operator window: large waterfall, range ruler, colour bar, nadir line, labeled detection boxes, telemetry/compass HUD, live contacts list, and a track mini-map. numpy + OpenCV only, cosmetic (replaces the bare `cv2.imshow`). |
 | `detection_log.py` | `DetectionLog` — accumulates georeferenced detections into a de-duplicated in-memory list of *contacts* (the mission hand-off list). `to_records/to_coords/to_geojson/to_csv` helpers. |
 | `sonar_display.py` | Palette LUTs + gamma for the waterfall colourisation (used by the dashboard). |
-| `export_coords.py` | Writes the contacts to an importable Python file (`coords = [(lat, lon, 0), ...]`) for hand-off. |
-| `planner_handoff.py` | The single seam to a downstream revisit *planner*: at end of survey `main.py` passes the contacts here; wire your planner's entry point into `_resolve_entry()`. |
+| `export_coords.py` | Writes the contacts to an importable Python file (`coords = [(lat, lon, 0), ...]`), or fills a hard-coded array (e.g. `WAYPOINTS`) in another file in place. |
+| `planner_handoff.py` | The single seam to a downstream revisit *planner*: at end of survey `main.py` passes the contacts here; wire the planner's entry point into `_resolve_entry()`. |
+| `mavlink.py` | Mission controller — uploads a waypoint mission to the boat over MAVLink (`upload_mission`, `set_orbit`, geofence checks). Reads its `WAYPOINTS` array; run as a script when connected to the boat. |
+| `mav_fence` | Uploads the geofence polygon (operating area) to the boat over MAVLink. Run as a script. |
 
 `main.py`, `replay_xtf.py`, and `mock_sonarlink.py` are three different *sources*
 feeding the same detector: the live boat, a recorded file, or a simulator.
@@ -72,28 +74,6 @@ SONAR_PALETTE=amber python replay_xtf.py scan.xtf
 ```
 Purely cosmetic — detection is unaffected.
 
-## Contact hand-off
-
-Every run produces a de-duplicated list of *contacts* (georeferenced lat/lon).
-`replay_xtf.py` writes them to **`contacts.py`** by default — an importable array
-another program uses with one line:
-```python
-from contacts import coords        # coords = [(lat, lon, 0), ...]
-```
-`contacts.py` is committed (starting empty), so the import always works even
-before the first scan. Each run overwrites it.
-
-```bash
-python replay_xtf.py scan.xtf                          # writes contacts.py
-python replay_xtf.py scan.xtf --coords out.py          # different filename
-python replay_xtf.py scan.xtf --coords-largest 50 --coords-min-hits 2   # only the real contacts
-python replay_xtf.py scan.xtf --no-coords              # skip writing
-```
-
-Live (`main.py`) does the same via `COORDS_OUT=...`, and at end of survey hands
-the largest contacts to a revisit planner through `planner_handoff.py` (wire your
-planner's function into `_resolve_entry()`).
-
 ### Without hardware (mock boat)
 Two terminals:
 ```bash
@@ -109,12 +89,58 @@ HOST=127.0.0.1 python main.py
 python preview_dashboard.py         # headless dashboard render → dashboard_preview.png
 ```
 
-The live windows (`main.py`, `replay_xtf.py`) now render through
-`sonar_dashboard.py` — a composited operator console rather than a raw grayscale
-window. Press **Q** (or Esc) to quit. Every detection is folded into a
-de-duplicated contact list (`detection_log.py`); the list is printed at the end
-of a run. At end of survey the largest contacts are handed to the revisit
-planner via `planner_handoff.py`.
+The live windows (`main.py`, `replay_xtf.py`) render through `sonar_dashboard.py`
+— a composited operator console rather than a raw grayscale window. Press **Q**
+(or Esc) to quit. Every detection is folded into a de-duplicated contact list
+(`detection_log.py`), printed at the end of a run.
+
+## Contact hand-off
+
+Every run produces a de-duplicated list of *contacts* (georeferenced lat/lon).
+There are three ways to get them out.
+
+### 1. Importable coords file (default)
+`replay_xtf.py` writes the contacts to **`contacts.py`** by default — an
+importable array another program loads with one line:
+```python
+from contacts import coords        # coords = [(lat, lon, 0), ...]
+```
+`contacts.py` is committed (starting empty), so the import always works even
+before the first scan. Each run overwrites it.
+```bash
+python replay_xtf.py scan.xtf                          # writes contacts.py
+python replay_xtf.py scan.xtf --coords out.py          # different filename
+python replay_xtf.py scan.xtf --coords-largest 50 --coords-min-hits 2   # only the real contacts
+python replay_xtf.py scan.xtf --no-coords              # skip writing
+```
+
+### 2. Fill a waypoint array in place
+Drop the contacts straight into the mission controller's `WAYPOINTS` array
+without touching the rest of that file (a `.bak` backup is written first). The
+points are written as `(lat, lon)` pairs to match the controller's format:
+```bash
+python replay_xtf.py scan.xtf --populate mavlink.py        # fills WAYPOINTS in mavlink.py
+python replay_xtf.py scan.xtf --populate target.py --populate-var POINTS   # different file/array
+```
+
+### 3. End-of-survey planner call (live)
+`main.py` hands the largest contacts to a downstream revisit planner through
+`planner_handoff.py` at end of survey — wire the planner's function into
+`_resolve_entry()`, or set `COORDS_OUT=...` to just write the coords file.
+
+## Full run: scan → mission
+
+Run the scan, fill the mission controller's waypoints, and launch it
+automatically — one command:
+```bash
+python replay_xtf.py scan.xtf \
+  --populate mavlink.py --coords-largest 50 --coords-min-hits 2 \
+  --run-after "python mavlink.py"
+```
+Sequence: scan → CFAR contacts → `WAYPOINTS` filled in `mavlink.py` → the sonar
+window closes → `mavlink.py` launches (connects to the boat and uploads the
+revisit mission). `--run-after` is **skipped if the scan is interrupted**
+(Ctrl-C), so no mission launches on an aborted run.
 
 ## Tests
 

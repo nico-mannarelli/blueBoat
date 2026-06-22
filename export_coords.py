@@ -16,19 +16,26 @@ import re
 import time
 
 
-def populate_coords_in_file(coords, path, var="coords"):
+def populate_coords_in_file(coords, path, var="coords", dims=3):
     """Fill an existing `var = [...]` assignment in `path` with the survey coords,
     leaving the rest of that file untouched.
 
-    Use this when another program already has a hard-coded `coords = [...]` array
-    at the top and just wants the numbers filled in each run — we replace only
-    that one assignment, not the whole file. A .bak copy is written first since
-    we're editing someone else's source. Leading indentation is preserved.
+    Use this when another program already has a hard-coded array (e.g. the
+    mission controller's `WAYPOINTS = [...]`) and just wants the numbers filled
+    in from each scan — we replace only that one assignment, not the whole file.
+    A .bak copy is written first since we're editing someone else's source.
+    Leading indentation is preserved.
+
+    dims : 2 writes `(lat, lon)` tuples (matches WAYPOINTS), 3 writes
+           `(lat, lon, third)` tuples (matches a `coords` array).
 
     If the file doesn't exist or has no `var = [...]` assignment, we fall back to
     writing a fresh importable module. Returns (path, count, mode) where mode is
     "in-place" or "created"."""
-    new_lines = [f"({lat}, {lon}, {third})," for lat, lon, third in coords]
+    if dims == 2:
+        new_lines = [f"({lat}, {lon})," for lat, lon, *_ in coords]
+    else:
+        new_lines = [f"({lat}, {lon}, {third})," for lat, lon, third in coords]
 
     if os.path.exists(path):
         text = open(path).read()

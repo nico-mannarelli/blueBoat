@@ -330,11 +330,19 @@ def main():
                     help="With --coords, drop contacts seen on fewer than N pings "
                          "(default 1; use 2 to drop one-ping flickers).")
     ap.add_argument("--populate", metavar="PATH", default=None,
-                    help="Fill the existing `coords = [...]` array at the top of "
-                         "PATH with this run's contacts, leaving the rest of that "
-                         "file untouched (a .bak backup is written first). Use "
-                         "this when another script already has a hard-coded coords "
-                         "array. Respects --coords-largest / --coords-min-hits.")
+                    help="Fill the hard-coded waypoint array in PATH (e.g. the "
+                         "mission controller's mavlink.py) with this run's "
+                         "contacts as (lat, lon) pairs, leaving the rest of that "
+                         "file untouched (a .bak backup is written first). "
+                         "Respects --coords-largest / --coords-min-hits.")
+    ap.add_argument("--populate-var", default="WAYPOINTS", dest="populate_var",
+                    help="Name of the array to fill in --populate's file "
+                         "(default: WAYPOINTS).")
+    ap.add_argument("--run-after", metavar="CMD", default=None, dest="run_after",
+                    help="Shell command to run once the scan finishes and the "
+                         "waypoints are written, e.g. "
+                         "--run-after 'python mavlink.py' to launch the mission "
+                         "controller automatically after the scan.")
     args = ap.parse_args()
 
     if args.probe:
@@ -405,6 +413,7 @@ def main():
           f"detector={'off' if args.no_detect else args.detector}  "
           f"mask_band={mask_band}  params={det_kwargs}  (Ctrl-C to stop)")
 
+    interrupted = False
     try:
         for ping, interval, lat, lon in itertools.chain([first], stream):
             if lat and lon:
@@ -415,6 +424,7 @@ def main():
             if args.speed > 0:
                 time.sleep(interval / args.speed)
     except KeyboardInterrupt:
+        interrupted = True
         print("\n[replay] stopped")
     finally:
         _summarize(log)
@@ -430,11 +440,21 @@ def main():
             from export_coords import populate_coords_in_file
             coords = log.to_coords(largest=args.coords_largest,
                                    min_hits=args.coords_min_hits)
-            path, n, mode = populate_coords_in_file(coords, args.populate)
-            print(f"[replay] populated {n} coord(s) into {path} ({mode}); "
-                  f"original backed up to {path}.bak" if mode == "in-place"
-                  else f"[replay] wrote {n} coord(s) to {path} ({mode})")
+            path, n, mode = populate_coords_in_file(
+                coords, args.populate, var=args.populate_var, dims=2)
+            if mode == "in-place":
+                print(f"[replay] populated {n} point(s) into {args.populate_var} "
+                      f"in {path}; original backed up to {path}.bak")
+            else:
+                print(f"[replay] wrote {n} point(s) to {path} ({mode})")
         cv2.destroyAllWindows()
+        if args.run_after and not interrupted:
+            import subprocess
+            print(f"[replay] running: {args.run_after}")
+            subprocess.run(args.run_after, shell=True)
+        elif args.run_after and interrupted:
+            print("[replay] scan interrupted — skipping --run-after "
+                  f"({args.run_after!r}) so no mission launches on an aborted run.")
 
 
 def _summarize(log):
