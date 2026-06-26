@@ -45,8 +45,8 @@ HOST     = os.environ.get("HOST", "192.168.2.2")
 PORT     = int(os.environ.get("SONAR_PORT", 7077))
 MAV_PORT = int(os.environ.get("MAV_PORT",   6040))
 
-# Display palette: "blue" (default), "amber" (SonarView-style), or "gray". Cosmetic only.
-PALETTE  = os.environ.get("SONAR_PALETTE", "blue")
+# Display palette: "amber" (SonarView-style, default), "blue", or "gray". Cosmetic only.
+PALETTE  = os.environ.get("SONAR_PALETTE", "amber")
 
 # Detection on/off. NO_DETECT=1 shows clean imagery only — no markers, no
 # contact list. Leave it off (default) when you need the coord list for handoff.
