@@ -273,9 +273,17 @@ def main():
     ap.add_argument("--no-detect", action="store_true",
                     help="Turn detection off: show clean imagery only, no markers, no contacts")
     ap.add_argument("--detector", default="cfar",
-                    choices=["both", "cfar", "classical", "roi", "blob"],
+                    choices=["both", "cfar", "classical", "roi", "blob", "blob_cfar"],
                     help="Detector to visualize (default: cfar)")
     ap.add_argument("--cfar-k", type=float, default=None, dest="cfar_k")
+    ap.add_argument("--cfar-min-abs-db", type=float, default=None, dest="cfar_min_abs_db",
+                    help="Absolute-brightness gate: drop CFAR boxes whose mean "
+                         "dB-excess over the window global median is below this.")
+    ap.add_argument("--cfar-min-contrast", type=float, default=None, dest="cfar_min_contrast",
+                    help="Drop CFAR boxes whose local contrast score is below this.")
+    ap.add_argument("--cfar-size-before-close", action="store_true",
+                    dest="cfar_size_before_close",
+                    help="Size-gate raw components before the morphological close.")
     ap.add_argument("--cfar-train-y", type=int, default=None, dest="cfar_train_y",
                     help="Along-track train half-height (>guard-y for a 2-D ring), e.g. 55")
     ap.add_argument("--cfar-guard-y", type=int, default=None, dest="cfar_guard_y",
@@ -376,6 +384,9 @@ def main():
 
     det_kwargs = {}
     if args.cfar_k is not None:        det_kwargs["cfar_k"] = args.cfar_k
+    if args.cfar_min_abs_db is not None:   det_kwargs["cfar_min_abs_db"] = args.cfar_min_abs_db
+    if args.cfar_min_contrast is not None: det_kwargs["cfar_min_contrast"] = args.cfar_min_contrast
+    if args.cfar_size_before_close:        det_kwargs["cfar_size_before_close"] = True
     if args.cfar_train_y is not None:  det_kwargs["cfar_train_y"] = args.cfar_train_y
     if args.cfar_guard_y is not None:  det_kwargs["cfar_guard_y"] = args.cfar_guard_y
     if args.min_area is not None:      det_kwargs["cfar_min_area"] = args.min_area

@@ -51,6 +51,11 @@ PALETTE  = os.environ.get("SONAR_PALETTE", "blue")
 # Detection on/off. NO_DETECT=1 shows clean imagery only — no markers, no
 # contact list. Leave it off (default) when you need the coord list for handoff.
 NO_DETECT = os.environ.get("NO_DETECT", "0") not in ("0", "", "false", "False")
+# Detector: "blob" (default — large-shape selective, best precision on textured
+# seabed), "cfar", "both", "roi", "blob_cfar". DETECT_GAMMA drives the blob
+# feature image (gamma>1 pushes dim speckle to black; 1.8 is the tuned value).
+DETECTOR     = os.environ.get("DETECTOR", "blob")
+DETECT_GAMMA = float(os.environ.get("DETECT_GAMMA", "1.8"))
 # If set, write the contact list as a Python array (coords = [(lat, lon, 0), ...])
 # to this path at the end of the run. e.g. COORDS_OUT=contacts_coords.py
 COORDS_OUT = os.environ.get("COORDS_OUT")
@@ -189,7 +194,8 @@ def _get_detector(channel):
             max_rows=500,
             detect_every=50,
             display_every=5,
-            detector="off" if NO_DETECT else "cfar",
+            detector="off" if NO_DETECT else DETECTOR,
+            detect_gamma=DETECT_GAMMA,
             on_detection=handle_detection,
             on_frame=draw,
         )

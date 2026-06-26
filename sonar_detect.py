@@ -104,6 +104,17 @@ class WaterfallDetector:
         cfar_close_ksize=7,    # morphological-close kernel to knit a target's pixels together
         cfar_merge_gap=12,     # merge CFAR boxes whose gap is below this (px); 0 disables
         cfar_backend="numpy",  # "numpy" (CPU) or "torch" (GPU on the edge server)
+        # ---- EXPERIMENTAL opt-in gates (default off = current behaviour) ----
+        # CFAR is brightness-invariant by design (a local-contrast detector); these
+        # re-introduce the *absolute* axis the blob detector keys on, so a bright
+        # target on dim seabed and a faint speckle bump stop looking identical.
+        cfar_min_contrast=0.0,   # drop CFAR boxes whose local contrast score < this
+        cfar_min_abs_db=0.0,     # drop CFAR boxes whose mean dB-excess over the window
+                                 #   GLOBAL median (a clean, non-self-subtracted
+                                 #   baseline) is < this. The absolute-brightness gate.
+        cfar_size_before_close=False,  # size-gate raw components BEFORE the morphological
+                                       #   close, so close can't bridge sub-threshold
+                                       #   speckle into a blob that then clears min_area
         # Cluster-confirm: keep a CFAR box only if it overlaps a dense DBSCAN
         # cluster of FAST+MSER keypoints (OpenSidescan's precision mechanism).
         # A real structured object lights up CFAR AND throws a knot of texture
@@ -232,6 +243,9 @@ class WaterfallDetector:
         self._cfar_min_area = cfar_min_area
         self._cfar_close_ksize = cfar_close_ksize
         self._cfar_merge_gap = cfar_merge_gap
+        self._cfar_min_contrast = cfar_min_contrast
+        self._cfar_min_abs_db = cfar_min_abs_db
+        self._cfar_size_before_close = cfar_size_before_close
         self._cfar_confirm = cfar_confirm
         self._confirm_min_feat = (cfar_confirm_min_feat
                                   if cfar_confirm_min_feat is not None
@@ -389,6 +403,18 @@ class WaterfallDetector:
         # leaves the threshold estimate uncorrupted.
         return f
 
+    def _build_clean_image(self, rows):
+        """Clean absolute-brightness baseline for the optional CFAR abs-dB gate:
+        dB-excess over the window's GLOBAL median (a single scalar), NOT the
+        per-column median. Using the global median avoids the self-subtraction
+        bias an extended along-track target suffers in the column-median image
+        (the target inflates its own column median and partially erases itself).
+        Seabed sits near 0 dB; a genuinely bright target reads strongly
+        positive on an absolute, non-locally-normalised scale."""
+        arr = self._stack(rows)
+        f = (arr - float(np.median(arr))).astype(np.float32)
+        return cv2.medianBlur(f, 5)
+
     def _build_feature_image(self, rows):
         """Grayscale image for FAST/MSER feature detection, built like
         OpenSidescan's: a contrast-stretched, histogram-equalized greyscale
@@ -483,9 +509,12 @@ class WaterfallDetector:
         objects = []
         if self.detector in ("cfar", "both"):
             cfar_img = self._build_cfar_image(rows)
+            abs_img = (self._build_clean_image(rows)
+                       if self._cfar_min_abs_db > 0 else None)
             if self._cfar_confirm:
                 feat_img = self._build_feature_image(rows)
-            objects += self._cfar_detect(cfar_img, ping, cluster_image=feat_img)
+            objects += self._cfar_detect(cfar_img, ping, cluster_image=feat_img,
+                                         abs_image=abs_img)
         if self.detector in ("classical", "both"):
             classical = self._hough_detect(image) + self._roi_detect(image)
             if self.min_contrast > 0:
@@ -517,6 +546,15 @@ class WaterfallDetector:
             # it without any per-pixel anomaly test.
             feat_img = self._build_feature_image(rows)
             blobs = self._blob_detect(feat_img)
+            objects += self._drop_in_guards(blobs, image.shape[1], ping)
+        if self.detector == "blob_cfar":
+            # Hybrid: CFAR's adaptive local threshold replaces blob's global
+            # percentile cutoff (so it tracks the local seabed), then blob's
+            # shape filters select the object-shaped anomalies. Blob behaviour,
+            # CFAR-optimised threshold.
+            cfar_img = self._build_cfar_image(rows)
+            feat_img = self._build_feature_image(rows)
+            blobs = self._blob_cfar_detect(cfar_img, feat_img)
             objects += self._drop_in_guards(blobs, image.shape[1], ping)
 
         # Shadow scoring (label-free precision lever): boost the score of
@@ -678,7 +716,7 @@ class WaterfallDetector:
             kept.append(o)
         return kept
 
-    def _cfar_detect(self, image, ping=None, cluster_image=None):
+    def _cfar_detect(self, image, ping=None, cluster_image=None, abs_image=None):
         if self._cfar_backend == "torch":
             mask, _ = self._cfar_mask_torch(image)
         else:
@@ -694,12 +732,27 @@ class WaterfallDetector:
         for a, b in self._guard_bands(W, ping):
             mask_u8[:, a:b] = 0
 
-        # Knit a target's scattered bright pixels into one coherent blob.
+        close_k = None
         if self._cfar_close_ksize > 1:
-            k = cv2.getStructuringElement(
+            close_k = cv2.getStructuringElement(
                 cv2.MORPH_ELLIPSE,
                 (self._cfar_close_ksize, self._cfar_close_ksize))
-            mask_u8 = cv2.morphologyEx(mask_u8, cv2.MORPH_CLOSE, k)
+
+        if self._cfar_size_before_close and close_k is not None:
+            # Size-gate the RAW components first, THEN close the survivors — so a
+            # morphological close can never bridge several sub-threshold speckle
+            # specks into one blob that clears min_area. Real fragments that are
+            # already big enough still get knitted.
+            n0, labels0, stats0, _ = cv2.connectedComponentsWithStats(
+                mask_u8, connectivity=8)
+            kept = np.zeros_like(mask_u8)
+            for i in range(1, n0):
+                if stats0[i][4] >= self._cfar_min_area:
+                    kept[labels0 == i] = 255
+            mask_u8 = cv2.morphologyEx(kept, cv2.MORPH_CLOSE, close_k)
+        elif close_k is not None:
+            # Default: knit a target's scattered bright pixels into one blob.
+            mask_u8 = cv2.morphologyEx(mask_u8, cv2.MORPH_CLOSE, close_k)
 
         n, _, stats, _ = cv2.connectedComponentsWithStats(mask_u8, connectivity=8)
 
@@ -711,6 +764,16 @@ class WaterfallDetector:
             obj = {"x": int(x), "y": int(y), "w": int(w), "h": int(h),
                    "source": "cfar"}
             obj["score"] = float(self._contrast(image, obj))
+            # Opt-in local-contrast gate (uses the score CFAR already computes).
+            if self._cfar_min_contrast > 0 and obj["score"] < self._cfar_min_contrast:
+                continue
+            # Opt-in absolute-brightness gate: mean dB-excess over the window
+            # global median (a clean, non-self-subtracted baseline) must clear
+            # the bar. This puts blob's absolute axis back onto CFAR.
+            if self._cfar_min_abs_db > 0 and abs_image is not None:
+                patch = abs_image[y:y + h, x:x + w]
+                if patch.size == 0 or float(patch.mean()) < self._cfar_min_abs_db:
+                    continue
             out.append(obj)
 
         if self._cfar_merge_gap > 0:
@@ -884,7 +947,14 @@ class WaterfallDetector:
         if thr <= 0:
             thr = 1.0
         binary = (image >= thr).astype(np.uint8) * 255
+        return self._blob_shape_filter(binary, image, source="blob")
 
+    def _blob_shape_filter(self, binary, image, source="blob"):
+        """Shared shape stage for the blob detectors: morphology (open then
+        close) → external contours → area / aspect / solidity / extent / contrast
+        filters. `binary` is a 0/255 mask of candidate pixels (from either a
+        global percentile or a CFAR adaptive threshold); `image` supplies the
+        contrast measurement so `blob_min_contrast` keeps consistent units."""
         if self._blob_open_ksize > 1:
             k = cv2.getStructuringElement(
                 cv2.MORPH_ELLIPSE,
@@ -919,13 +989,28 @@ class WaterfallDetector:
             if extent < self._blob_min_extent:
                 continue
             obj = {"x": int(x), "y": int(y), "w": int(w), "h": int(h),
-                   "source": "blob"}
+                   "source": source}
             con = self._contrast(image, obj)
             if con < self._blob_min_contrast:
                 continue
             obj["score"] = float(con)
             out.append(obj)
         return out
+
+    def _blob_cfar_detect(self, cfar_img, feat_img):
+        """Hybrid: CFAR's adaptive local threshold supplies the candidate mask
+        (so the cutoff tracks the local seabed instead of a brittle global
+        percentile), then blob's shape filters select object-shaped anomalies.
+        Contrast is measured on the feature image so blob_min_contrast units
+        match the pure-blob detector. cfar_img and feat_img share dimensions
+        (both built from the same ping stack), so the mask and the contrast
+        image are pixel-aligned."""
+        if self._cfar_backend == "torch":
+            mask, _ = self._cfar_mask_torch(cfar_img)
+        else:
+            mask, _ = self._cfar_mask_numpy(cfar_img)
+        binary = mask.astype(np.uint8) * 255
+        return self._blob_shape_filter(binary, feat_img, source="blob_cfar")
 
     def _hough_detect(self, image):
         circles = cv2.HoughCircles(

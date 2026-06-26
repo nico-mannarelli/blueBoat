@@ -344,6 +344,19 @@ def main():
     ap.add_argument("--sweep-k", default=None, dest="sweep_k",
                     help="Comma list of cfar_k to try in one run, e.g. 3,4,5,6. "
                          "Prints a P/R/F1 table per k instead of a full report.")
+    # ---- absolute-axis experiment (opt-in CFAR gates) ----
+    ap.add_argument("--sweep-abs-db", default=None, dest="sweep_abs_db",
+                    help="Comma list of cfar_min_abs_db gates to try, e.g. 0,2,4,6,8. "
+                         "Prints a P/R/F1 table per gate (the absolute-brightness "
+                         "axis experiment). Use with --detector cfar.")
+    ap.add_argument("--cfar-min-abs-db", type=float, default=None, dest="cfar_min_abs_db",
+                    help="Drop CFAR boxes whose mean dB-excess over the window "
+                         "global median is below this (absolute-brightness gate).")
+    ap.add_argument("--cfar-min-contrast", type=float, default=None, dest="cfar_min_contrast",
+                    help="Drop CFAR boxes whose local contrast score is below this.")
+    ap.add_argument("--cfar-size-before-close", action="store_true",
+                    dest="cfar_size_before_close",
+                    help="Size-gate raw components BEFORE the morphological close.")
     ap.add_argument("--tol", type=int, default=40,
                     help="Match tolerance in px (default 40)")
     ap.add_argument("--limit", type=int, default=None,
@@ -404,6 +417,12 @@ def main():
         det_kwargs["blob_min_contrast"] = args.blob_min_contrast
     if args.shadow is not None:
         det_kwargs["shadow_mode"] = args.shadow
+    if args.cfar_min_abs_db is not None:
+        det_kwargs["cfar_min_abs_db"] = args.cfar_min_abs_db
+    if args.cfar_min_contrast is not None:
+        det_kwargs["cfar_min_contrast"] = args.cfar_min_contrast
+    if args.cfar_size_before_close:
+        det_kwargs["cfar_size_before_close"] = True
 
     print(f"[score] {args.xtf}")
     print(f"[score] labels={len(labels)} from {os.path.basename(hits_path)}  "
@@ -453,6 +472,34 @@ def main():
             if best is None or r["f1"] > best[1]:
                 best = (k, r["f1"])
         print(f"\n[score] best F1 {best[1]:.2f} at cfar_k={best[0]:g}")
+        return
+
+    # Absolute-axis experiment: sweep the absolute dB-excess gate on the CFAR
+    # mask and watch how precision/recall move. Disambiguates "CFAR mistuned"
+    # from "CFAR wrong axis" — see the read-out note printed below the table.
+    if args.sweep_abs_db:
+        gates = [float(s) for s in args.sweep_abs_db.split(",") if s.strip()]
+        print(f"[score] sweeping cfar_min_abs_db over {gates} (gate=0 is plain CFAR)\n")
+        print(f"  {'absdB':>6}  {'contacts':>8}  {'TP':>3}  {'FP':>3}  {'FN':>3}  "
+              f"{'prec':>5}  {'recall':>6}  {'F1':>5}")
+        print("  " + "-" * 56)
+        best = None
+        for g in gates:
+            dets = run_detector(pings, quiet=True,
+                                **{**det_kwargs, "cfar_min_abs_db": g})
+            contacts = dedup(dets)
+            r = score(labels, contacts, tol=args.tol)
+            print(f"  {g:>6.1f}  {r['n_contacts']:>8}  {r['tp']:>3}  {r['fp']:>3}  "
+                  f"{r['fn']:>3}  {r['precision']:>5.2f}  {r['recall']:>6.2f}  "
+                  f"{r['f1']:>5.2f}")
+            if best is None or r["f1"] > best[1]:
+                best = (g, r["f1"])
+        print(f"\n[score] best F1 {best[1]:.2f} at cfar_min_abs_db={best[0]:g}")
+        print("[score] read-out: precision climbs while recall holds → the FPs "
+              "were low-absolute-dB clutter (CFAR is on the wrong axis; demote it "
+              "to an OR recall-booster). Recall collapses for little precision "
+              "gain → targets really are dim in absolute dB (CFAR's relative "
+              "framing is needed; it's a tuning problem).")
         return
 
     dets = run_detector(pings, **det_kwargs)

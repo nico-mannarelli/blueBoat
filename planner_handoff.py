@@ -1,43 +1,53 @@
 """
 planner_handoff.py
-The single seam between this survey program and the revisit *planner*. When a
-live survey ends, main.py hands the largest-N contacts here and this module gets
-them to the planner, which builds a revisit plan to run *after* the current
-mission.
+The seam between this survey program and the revisit step. When a live survey
+ends, main.py hands the largest-N contacts here and this module gets them to the
+boat so it re-drives the contacts after the survey.
 
-There is exactly ONE thing to wire: point `_resolve_entry` at the planner's
-entry point. Everything else (selecting/limiting contacts, the end-of-survey
-trigger) already lives in main.py and detection_log.py.
+Default behaviour: upload the contacts to the autopilot as a MAVLink mission
+(NAV_WAYPOINT per contact) — fully autonomous, no extra script needed. This
+REPLACES the autopilot's current mission, so it is meant to run at end of survey.
 
---------------------------------------------------------------------------
-Wiring the planner in
---------------------------------------------------------------------------
-The planner consumes a coords array shaped `coords = [(lat, lon, 0), ...]`.
-Pick whichever of these matches how the planner is packaged and delete the rest:
+Dispatch order in send_to_planner():
+  1. a custom planner if wired (PLANNER_ENTRY / _resolve_entry) — takes priority,
+  2. else MAVLink mission upload (default; UPLOAD_MAVLINK=0 to disable),
+  3. else / on upload failure: write the importable coords file as a safety net.
 
-  1. The planner exposes a function (e.g. `plan_revisit(coords)`):
-         from revisit_planner import plan_revisit
-         def _resolve_entry(): return plan_revisit
+Key env knobs:
+  UPLOAD_MAVLINK=0            disable the upload (write the file instead)
+  PLANNER_MAV_CONN=...        pymavlink connection to the AUTOPILOT
+                             (default udpout:$HOST:14550)
+  PLANNER_ACCEPT_RADIUS=5     waypoint acceptance radius, metres
+  PLANNER_DWELL_S=0           dwell seconds over each contact (>0 = LOITER_TIME)
+  PLANNER_ENTRY=mod:func      route to a custom planner instead of uploading
 
-  2. The planner only reads a coords file on disk:
-         leave PLANNER_ENTRY unset — the fallback writes that file
-         (set COORDS_OUT / PLANNER_COORDS_FILE to the path it imports).
-
-  3. The entry point is configurable without editing code:
-         set env PLANNER_ENTRY="revisit_planner:plan_revisit" before running.
-
-If nothing is wired, this module still writes the coords file so the contacts
-are never lost — the run just prints how to connect the planner.
+To route to a custom planner that consumes `coords = [(lat, lon, 0), ...]`,
+set PLANNER_ENTRY="revisit_planner:plan_revisit" or hard-wire _resolve_entry().
 """
 
 import importlib
 import os
 
 # Optional: "module:function" string, e.g. "revisit_planner:plan_revisit".
-# Set this (or edit _resolve_entry below) to point at the revisit planner.
+# Set this (or edit _resolve_entry below) to point at the revisit planner. When
+# set it takes priority over the built-in MAVLink upload below.
 PLANNER_ENTRY = os.environ.get("PLANNER_ENTRY")
 
-# Where the fallback writes the coords array if the planner isn't wired yet.
+# Built-in autonomous action: upload the contacts to the boat as a MAVLink
+# mission so it re-drives them. On by default; UPLOAD_MAVLINK=0 disables it and
+# falls back to writing the importable coords file.
+UPLOAD_MAVLINK = os.environ.get("UPLOAD_MAVLINK", "1") not in ("0", "", "false", "False")
+# pymavlink connection string to the AUTOPILOT (not mavlink2rest). Default targets
+# the boat's standard MAVLink UDP endpoint; override for your link, e.g.
+# PLANNER_MAV_CONN="udpout:192.168.2.2:14550" or "tcp:192.168.2.2:5777".
+PLANNER_MAV_CONN = os.environ.get(
+    "PLANNER_MAV_CONN", f"udpout:{os.environ.get('HOST', '192.168.2.2')}:14550")
+# Waypoint acceptance radius (m) — how close the boat must get to count a
+# contact as reached — and an optional dwell (s) over each one for a closer look.
+PLANNER_ACCEPT_RADIUS = float(os.environ.get("PLANNER_ACCEPT_RADIUS", "5"))
+PLANNER_DWELL_S = float(os.environ.get("PLANNER_DWELL_S", "0"))
+
+# Where the fallback writes the coords array if upload is off/fails.
 PLANNER_COORDS_FILE = os.environ.get(
     "PLANNER_COORDS_FILE", os.environ.get("COORDS_OUT", "contacts_coords.py")
 )
@@ -60,6 +70,64 @@ def _resolve_entry():
     return None
 
 
+def upload_mission_mavlink(coords, conn=None, accept_radius=None, dwell_s=None):
+    """Upload `coords` to the boat's autopilot as a MAVLink mission so it
+    re-drives the contacts. Each point becomes a NAV_WAYPOINT (or NAV_LOITER_TIME
+    if dwell_s > 0). Runs the standard mission-upload handshake via pymavlink.
+
+    coords : [(lat, lon, _), ...]. The 3rd slot is ignored (surface vessel, alt 0).
+
+    NOTE: this REPLACES the autopilot's current mission. It is meant to run at
+    end of survey, after the survey mission has finished. Raises on failure so
+    the caller can fall back to writing the coords file.
+    """
+    from pymavlink import mavutil
+
+    conn = conn or PLANNER_MAV_CONN
+    accept_radius = PLANNER_ACCEPT_RADIUS if accept_radius is None else accept_radius
+    dwell_s = PLANNER_DWELL_S if dwell_s is None else dwell_s
+
+    print(f"[planner] connecting to autopilot {conn} ...")
+    m = mavutil.mavlink_connection(conn)
+    if m.wait_heartbeat(timeout=15) is None:
+        raise RuntimeError(f"no MAVLink heartbeat from {conn} within 15s")
+    sysid, compid = m.target_system, m.target_component
+    print(f"[planner] heartbeat from sys {sysid} comp {compid}; "
+          f"uploading {len(coords)} waypoint(s)")
+
+    cmd = (mavutil.mavlink.MAV_CMD_NAV_LOITER_TIME if dwell_s > 0
+           else mavutil.mavlink.MAV_CMD_NAV_WAYPOINT)
+    frame = mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT
+
+    def send_item(seq):
+        lat, lon = coords[seq][0], coords[seq][1]
+        # param1: hold/loiter time (s); param2: accept radius; param4: yaw (NaN=any)
+        p1 = dwell_s if dwell_s > 0 else 0.0
+        m.mav.mission_item_int_send(
+            sysid, compid, seq, frame, cmd,
+            1 if seq == 0 else 0,          # current
+            1,                             # autocontinue
+            p1, accept_radius, 0.0, float("nan"),
+            int(round(lat * 1e7)), int(round(lon * 1e7)), 0.0)
+
+    m.mav.mission_count_send(sysid, compid, len(coords))
+    acked = 0
+    while acked < len(coords):
+        req = m.recv_match(type=["MISSION_REQUEST_INT", "MISSION_REQUEST"],
+                           blocking=True, timeout=10)
+        if req is None:
+            raise RuntimeError("autopilot stopped requesting mission items (timeout)")
+        send_item(req.seq)
+        acked = req.seq + 1
+
+    ack = m.recv_match(type="MISSION_ACK", blocking=True, timeout=10)
+    ok = ack is not None and ack.type == mavutil.mavlink.MAV_MISSION_ACCEPTED
+    if not ok:
+        raise RuntimeError(f"mission not accepted (ack={getattr(ack, 'type', None)})")
+    print(f"[planner] mission accepted by autopilot ({len(coords)} waypoints)")
+    return True
+
+
 def _write_fallback(coords, path):
     from export_coords import write_coords_file
     write_coords_file(coords, path=path)
@@ -67,13 +135,19 @@ def _write_fallback(coords, path):
 
 
 def send_to_planner(coords):
-    """Hand the contact coords to the revisit planner.
+    """Hand the contact coords onward at end of survey.
+
+    Dispatch order:
+      1. a custom planner if wired (PLANNER_ENTRY / _resolve_entry),
+      2. else upload a MAVLink mission to the boat (default),
+      3. else (upload off or failed) write the importable coords file so the
+         contacts are never lost.
 
     coords : list of (lat, lon, third) tuples — already filtered/limited by the
              caller (main.py passes the largest 50, hits >= 2).
 
-    Returns True if the planner was called, False if it fell back to writing
-    the coords file (planner not wired). Never raises on a missing planner.
+    Returns True if a planner/upload handled it, False if it fell back to a file.
+    Never raises.
     """
     if not coords:
         print("[planner] no contacts to hand off — nothing sent.")
@@ -87,8 +161,17 @@ def send_to_planner(coords):
               f"{getattr(entry, '__name__', 'planner')}()")
         return True
 
+    if UPLOAD_MAVLINK:
+        try:
+            upload_mission_mavlink(coords)
+            return True
+        except Exception as e:
+            print(f"[planner] MAVLink upload failed: {e}")
+            path = _write_fallback(coords, PLANNER_COORDS_FILE)
+            print(f"[planner] saved {len(coords)} coord(s) to {path} instead "
+                  "(import them or retry the upload).")
+            return False
+
     path = _write_fallback(coords, PLANNER_COORDS_FILE)
-    print(f"[planner] planner not wired — wrote {len(coords)} coord(s) to {path}")
-    print("[planner] connect it by editing _resolve_entry() in planner_handoff.py "
-          'or setting PLANNER_ENTRY="module:function".')
+    print(f"[planner] MAVLink upload disabled — wrote {len(coords)} coord(s) to {path}")
     return False
