@@ -15,6 +15,8 @@ __pycache__/
 
 # Generated hand-off artifacts (re-created each run)
 contacts_coords.py
+contacts.py
 contacts.geojson
 contacts.csv
 revisit.plan
+*.bak
