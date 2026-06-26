@@ -8,6 +8,7 @@ Keeping it separate means the parser and detector never have to know the socket
 exists -- they just receive bytes.
 """
 
+import threading
 import time
 
 import requests
@@ -27,6 +28,8 @@ class SonarLinkClient:
         length_mm=30_000,   # sonar range: 30 m default
         num_results=600,    # samples per ping (200-1200)
         gain_index=-1,      # -1 = auto gain
+        idle_timeout=0.0,   # >0: end the run after this many seconds of no sonar
+                            # data (survey over). 0 disables the watchdog.
     ):
         self.host = host
         self.port = port
@@ -34,8 +37,22 @@ class SonarLinkClient:
         self.length_mm = length_mm
         self.num_results = num_results
         self.gain_index = gain_index
+        self.idle_timeout = idle_timeout
         self.session_id = None
         self._ws = None
+        self._stop = False        # set by stop() to end the run for good
+        self._last_rx = None      # time of last sonar byte (for the watchdog)
+        self._watchdog = None
+
+    def stop(self):
+        """End the run deterministically: stop reconnecting and close the socket
+        so run_forever() returns and the caller's end-of-survey handoff fires."""
+        self._stop = True
+        try:
+            if self._ws is not None:
+                self._ws.close()
+        except Exception:
+            pass
 
     # ---- session discovery -------------------------------------------------
     def fetch_session_id(self):
@@ -110,6 +127,7 @@ class SonarLinkClient:
     # ---- websocket callbacks ----------------------------------------------
     def _on_message(self, ws, message):
         if isinstance(message, (bytes, bytearray)):
+            self._last_rx = time.time()
             if self.on_bytes:
                 self.on_bytes(message)
 
@@ -123,9 +141,27 @@ class SonarLinkClient:
     def _on_close(self, ws, code, msg):
         print(f"[ws] closed (code={code})")
 
+    # ---- idle watchdog (optional backstop) ---------------------------------
+    def _watch_idle(self):
+        """If no sonar data arrives for idle_timeout seconds after the survey
+        has started, end the run. Off unless idle_timeout > 0."""
+        while not self._stop:
+            time.sleep(1.0)
+            if self._last_rx is None:        # not started yet — wait
+                continue
+            if time.time() - self._last_rx > self.idle_timeout:
+                print(f"[ws] no sonar data for {self.idle_timeout:.0f}s "
+                      "— ending survey")
+                self.stop()
+                break
+
     # ---- run loop ----------------------------------------------------------
     def run_forever(self, auto_reconnect=True):
-        while True:
+        if self.idle_timeout and self.idle_timeout > 0 and self._watchdog is None:
+            self._watchdog = threading.Thread(target=self._watch_idle,
+                                              daemon=True, name="sonar-idle")
+            self._watchdog.start()
+        while not self._stop:
             try:
                 self.fetch_session_id()
                 url = (
@@ -143,7 +179,7 @@ class SonarLinkClient:
             except Exception as e:
                 print(f"[ws] connection failed: {e}")
 
-            if not auto_reconnect:
+            if self._stop or not auto_reconnect:
                 break
             print("[ws] reconnecting in 3s...")
             time.sleep(3)

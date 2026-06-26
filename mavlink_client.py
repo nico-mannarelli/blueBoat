@@ -27,6 +27,10 @@ import time
 
 import websocket
 
+# MISSION_CURRENT.mission_state enum (MAVLink MISSION_STATE):
+#   0 UNKNOWN  1 NO_MISSION  2 NOT_STARTED  3 ACTIVE  4 PAUSED  5 COMPLETE
+MISSION_STATE_COMPLETE = 5
+
 
 class VehicleState:
     """Thread-safe snapshot of the vehicle's latest position and attitude.
@@ -42,6 +46,7 @@ class VehicleState:
         self._alt_m   = None
         self._heading = None   # degrees, 0-360, from ATTITUDE.yaw
         self._ts      = None
+        self._mission_state = None   # MISSION_CURRENT.mission_state (5 = COMPLETE)
 
     def update_gps(self, lat, lon, alt_m, timestamp_ms=None):
         with self._lock:
@@ -53,6 +58,15 @@ class VehicleState:
     def update_heading(self, heading_deg):
         with self._lock:
             self._heading = heading_deg % 360.0
+
+    def update_mission_state(self, mission_state):
+        with self._lock:
+            self._mission_state = mission_state
+
+    @property
+    def mission_state(self):
+        with self._lock:
+            return self._mission_state
 
     @property
     def fix(self):
@@ -89,11 +103,16 @@ class MAVLinkClient:
     from any thread.
     """
 
-    def __init__(self, host="192.168.2.2", port=6040, state=None):
+    def __init__(self, host="192.168.2.2", port=6040, state=None,
+                 on_mission_complete=None):
         self.host  = host
         self.port  = port
         self.state = state or VehicleState()
         self._ws   = None
+        # Called once (from this thread) when the autopilot reports the mission
+        # is COMPLETE. main.py wires this to sonar.stop() to end the survey.
+        self.on_mission_complete = on_mission_complete
+        self._mission_complete_fired = False
 
     # ---- message handling --------------------------------------------------
 
@@ -103,6 +122,22 @@ class MAVLinkClient:
         # mavlink2rest wraps the MAVLink message under a "message" key
         msg = packet.get("message", packet)
         msg_type = str(msg.get("type", "")).upper()
+
+        if msg_type == "MISSION_CURRENT":
+            # mission_state is only populated on newer autopilots; absent -> None
+            ms = _unwrap(msg.get("mission_state", None))
+            if ms is not None:
+                self.state.update_mission_state(ms)
+                if (ms == MISSION_STATE_COMPLETE
+                        and not self._mission_complete_fired):
+                    self._mission_complete_fired = True
+                    print("[mavlink] mission COMPLETE (mission_state=5)")
+                    if self.on_mission_complete:
+                        try:
+                            self.on_mission_complete()
+                        except Exception as e:
+                            print(f"[mavlink] on_mission_complete error: {e}")
+            return
 
         if msg_type == "GLOBAL_POSITION_INT":
             lat = _unwrap(msg.get("lat", 0))

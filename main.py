@@ -56,6 +56,9 @@ NO_DETECT = os.environ.get("NO_DETECT", "0") not in ("0", "", "false", "False")
 # feature image (gamma>1 pushes dim speckle to black; 1.8 is the tuned value).
 DETECTOR     = os.environ.get("DETECTOR", "blob")
 DETECT_GAMMA = float(os.environ.get("DETECT_GAMMA", "1.8"))
+# Optional backstop end-of-survey trigger: end the run if no sonar data arrives
+# for this many seconds (0 = off; the primary trigger is mission_state=5).
+SURVEY_IDLE_TIMEOUT = float(os.environ.get("SURVEY_IDLE_TIMEOUT", "0"))
 # If set, write the contact list as a Python array (coords = [(lat, lon, 0), ...])
 # to this path at the end of the run. e.g. COORDS_OUT=contacts_coords.py
 COORDS_OUT = os.environ.get("COORDS_OUT")
@@ -225,10 +228,18 @@ def main():
     print(f"[main] sonar    →  {HOST}:{PORT}")
     print(f"[main] mavlink  →  {HOST}:{MAV_PORT}")
 
-    mav = MAVLinkClient(host=HOST, port=MAV_PORT, state=vehicle)
+    # Sonar first so we can hand its stop() to the mavlink client: when the
+    # autopilot reports the mission COMPLETE (mission_state=5), stop() ends the
+    # survey, run_forever() returns, and the finally block below runs the
+    # end-of-survey handoff. SURVEY_IDLE_TIMEOUT (s) is an optional backstop that
+    # ends the run if sonar data stops for that long (0 = off).
+    sonar = SonarLinkClient(host=HOST, port=PORT, on_bytes=on_bytes,
+                            idle_timeout=SURVEY_IDLE_TIMEOUT)
+
+    mav = MAVLinkClient(host=HOST, port=MAV_PORT, state=vehicle,
+                        on_mission_complete=sonar.stop)
     mav.start()
 
-    sonar = SonarLinkClient(host=HOST, port=PORT, on_bytes=on_bytes)
     try:
         sonar.run_forever(auto_reconnect=True)
     finally:
