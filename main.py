@@ -59,6 +59,17 @@ DETECT_GAMMA = float(os.environ.get("DETECT_GAMMA", "1.8"))
 # Optional backstop end-of-survey trigger: end the run if no sonar data arrives
 # for this many seconds (0 = off; the primary trigger is mission_state=5).
 SURVEY_IDLE_TIMEOUT = float(os.environ.get("SURVEY_IDLE_TIMEOUT", "0"))
+
+# Autonomous revisit chain (runs at end of survey, after mission_state=5):
+#   POPULATE_FILE : write the detected coords into the `WAYPOINTS = [...]` array
+#                   in this file (e.g. the mission uploader, mavlink.py) so it
+#                   drives the detections. Off unless set.
+#   POPULATE_VAR  : the array name to fill (default WAYPOINTS).
+#   RUN_AFTER     : shell command run after populating — the uploader that pushes
+#                   and starts the new mission (e.g. "python mavlink.py").
+POPULATE_FILE = os.environ.get("POPULATE_FILE")
+POPULATE_VAR  = os.environ.get("POPULATE_VAR", "WAYPOINTS")
+RUN_AFTER     = os.environ.get("RUN_AFTER")
 # If set, write the contact list as a Python array (coords = [(lat, lon, 0), ...])
 # to this path at the end of the run. e.g. COORDS_OUT=contacts_coords.py
 COORDS_OUT = os.environ.get("COORDS_OUT")
@@ -257,13 +268,40 @@ def main():
             print(f"[main] wrote {n} coord(s) to {path} "
                   f"(import with: from {os.path.splitext(os.path.basename(path))[0]} "
                   "import coords)")
+        # The revisit contacts: largest N, dropping one-ping flickers.
+        revisit = (log.to_coords(largest=PLANNER_LARGEST, min_hits=PLANNER_MIN_HITS)
+                   if len(log) else [])
+
         # End-of-survey: hand the largest contacts to the revisit planner so it
         # can plan a revisit run after this mission (see planner_handoff.py).
-        if SEND_TO_PLANNER and len(log):
-            coords = log.to_coords(largest=PLANNER_LARGEST, min_hits=PLANNER_MIN_HITS)
-            print(f"[main] sending {len(coords)} contact(s) to revisit planner "
+        if SEND_TO_PLANNER and revisit:
+            print(f"[main] sending {len(revisit)} contact(s) to revisit planner "
                   f"(largest {PLANNER_LARGEST} by area, hits >= {PLANNER_MIN_HITS})")
-            send_to_planner(coords)
+            send_to_planner(revisit)
+
+        # Autonomous revisit chain: write the detections into the uploader's
+        # WAYPOINTS array, then launch the uploader to push + start the new
+        # mission. Guarded on having contacts so we never blank out WAYPOINTS or
+        # run the uploader with nothing to upload.
+        if POPULATE_FILE and revisit:
+            from export_coords import populate_coords_in_file
+            path, n, mode = populate_coords_in_file(
+                revisit, POPULATE_FILE, var=POPULATE_VAR, dims=2)
+            if mode == "in-place":
+                print(f"[main] populated {n} point(s) into {POPULATE_VAR} in "
+                      f"{path}  (original backed up to {path}.bak)")
+            else:
+                print(f"[main] wrote {n} point(s) to {path} ({mode})")
+        elif POPULATE_FILE and not revisit:
+            print("[main] no contacts — leaving WAYPOINTS untouched")
+
+        if RUN_AFTER and revisit:
+            import subprocess
+            print(f"[main] launching uploader: {RUN_AFTER}")
+            subprocess.run(RUN_AFTER, shell=True)
+        elif RUN_AFTER and not revisit:
+            print(f"[main] no contacts — skipping uploader ({RUN_AFTER})")
+
         cv2.destroyAllWindows()
 
 
