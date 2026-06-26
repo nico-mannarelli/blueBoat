@@ -4,22 +4,23 @@ The seam between this survey program and the revisit step. When a live survey
 ends, main.py hands the largest-N contacts here and this module gets them to the
 boat so it re-drives the contacts after the survey.
 
-Default behaviour: upload the contacts to the autopilot as a MAVLink mission
-(NAV_WAYPOINT per contact) — fully autonomous, no extra script needed. This
-REPLACES the autopilot's current mission, so it is meant to run at end of survey.
+Default behaviour: write the contacts to `contacts_coords.py`, an importable
+module (`coords = [(lat, lon, 0), ...]`). Your coworker's MAVLink script imports
+that file and does the actual upload — this program does NOT touch the autopilot.
 
 Dispatch order in send_to_planner():
   1. a custom planner if wired (PLANNER_ENTRY / _resolve_entry) — takes priority,
-  2. else MAVLink mission upload (default; UPLOAD_MAVLINK=0 to disable),
-  3. else / on upload failure: write the importable coords file as a safety net.
+  2. else (default) write the importable coords file for the coworker's script,
+  3. optional: if UPLOAD_MAVLINK=1, this program uploads the mission itself
+     instead — only turn this on if you want to be the uploader.
 
 Key env knobs:
-  UPLOAD_MAVLINK=0            disable the upload (write the file instead)
-  PLANNER_MAV_CONN=...        pymavlink connection to the AUTOPILOT
+  UPLOAD_MAVLINK=1            let THIS program upload the mission (off by default)
+  PLANNER_MAV_CONN=...        pymavlink connection to the AUTOPILOT, if uploading
                              (default udpout:$HOST:14550)
   PLANNER_ACCEPT_RADIUS=5     waypoint acceptance radius, metres
   PLANNER_DWELL_S=0           dwell seconds over each contact (>0 = LOITER_TIME)
-  PLANNER_ENTRY=mod:func      route to a custom planner instead of uploading
+  PLANNER_ENTRY=mod:func      route to a custom planner instead of the file
 
 To route to a custom planner that consumes `coords = [(lat, lon, 0), ...]`,
 set PLANNER_ENTRY="revisit_planner:plan_revisit" or hard-wire _resolve_entry().
@@ -33,10 +34,11 @@ import os
 # set it takes priority over the built-in MAVLink upload below.
 PLANNER_ENTRY = os.environ.get("PLANNER_ENTRY")
 
-# Built-in autonomous action: upload the contacts to the boat as a MAVLink
-# mission so it re-drives them. On by default; UPLOAD_MAVLINK=0 disables it and
-# falls back to writing the importable coords file.
-UPLOAD_MAVLINK = os.environ.get("UPLOAD_MAVLINK", "1") not in ("0", "", "false", "False")
+# Optional built-in upload: push the contacts to the boat as a MAVLink mission
+# directly from this program. OFF by default so the upload stays your coworker's
+# job (she imports contacts_coords.py and uploads). Set UPLOAD_MAVLINK=1 only if
+# you want THIS program to be the uploader instead.
+UPLOAD_MAVLINK = os.environ.get("UPLOAD_MAVLINK", "0") not in ("0", "", "false", "False")
 # pymavlink connection string to the AUTOPILOT (not mavlink2rest). Default targets
 # the boat's standard MAVLink UDP endpoint; override for your link, e.g.
 # PLANNER_MAV_CONN="udpout:192.168.2.2:14550" or "tcp:192.168.2.2:5777".
@@ -173,5 +175,7 @@ def send_to_planner(coords):
             return False
 
     path = _write_fallback(coords, PLANNER_COORDS_FILE)
-    print(f"[planner] MAVLink upload disabled — wrote {len(coords)} coord(s) to {path}")
+    mod = os.path.splitext(os.path.basename(path))[0]
+    print(f"[planner] wrote {len(coords)} coord(s) to {path} for the revisit "
+          f"script (it does: from {mod} import coords)")
     return False
