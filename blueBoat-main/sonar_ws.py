@@ -145,6 +145,14 @@ class SonarLinkClient:
     def _on_close(self, ws, code, msg):
         print(f"[ws] closed (code={code})")
 
+    def _reset_for_new_run(self):
+        """stop() latches _stop True and the idle watchdog thread exits after
+        firing, so a client that ended one survey can never start another
+        unless both are cleared. Call this before starting a new mission."""
+        self._stop = False
+        self._last_rx = None
+        self._watchdog = None
+
     # ---- idle watchdog (optional backstop) ---------------------------------
     def _watch_idle(self):
         """If no sonar data arrives for idle_timeout seconds after the survey
@@ -231,24 +239,33 @@ class SonarLinkClient:
                     blocking=True, timeout=5
                 )
 
-                if msg.mission_state == 5:
+                if msg is None:      # recv timeout, not an error — keep polling
+                    continue
+
+                if getattr(msg, "mission_state", 0) == 5:
                     print("Mission 1 complete!")
                     break
 
-                # if msg:
-                #     print(msg.seq)
-                #     #print(count) # for testing
-                #     if msg.seq == missionEnd: #msg.seq = missionEnd 
-                #         print("first mission complete!")
-                #         break
                 count += 1
-                    
+
             except Exception as e:
                 print(f"[ws] connection failed: {e}")
 
-    #           
-    def run_second_mission(self, auto_reconnect=True):
+        # Belt and braces: normally MAVLinkClient's on_mission_complete fires
+        # sonar.stop(), but if that path is down (no mavlink2rest / no
+        # mission_state over WS) the mission-1 sonar thread would survive into
+        # mission 2 and fight the new one for the socket. stop() is idempotent.
+        self.stop()
+
+    #
+    def run_second_mission(self, auto_reconnect=True, missionEnd=None):
         shared_states.mission_1_png = False
+
+        # Mission 1 ended via stop(), which latched _stop and killed the
+        # watchdog — without this reset start_sonar_thread() exits instantly
+        # and the sonar never comes up for mission 2.
+        self._reset_for_new_run()
+
         if self.idle_timeout and self.idle_timeout > 0 and self._watchdog is None:
             self._watchdog = threading.Thread(target=self._watch_idle,
                                               daemon=True, name="sonar-idle")
@@ -268,35 +285,41 @@ class SonarLinkClient:
         while True:
             try:
                 msg = connection.recv_match(blocking=True, timeout=5)
-                print(msg)
-                print("!!!!!!!")
-                type = msg.get_type() 
-                if type == "MISSION_CURRENT":
-                    print(msg.seq)
-                    #print(count) # for testing
-                    if msg.seq == 4: #msg.seq = missionEnd 
+
+                if msg is None:      # recv timeout, not an error — keep polling
+                    continue
+
+                mtype = msg.get_type()
+                if mtype == "MISSION_CURRENT":
+                    # mission_state == 5 (COMPLETE) is the real end-of-mission
+                    # signal. seq alone fires when the boat starts *towards*
+                    # the last waypoint, not when the mission finishes.
+                    if getattr(msg, "mission_state", 0) == 5:
                         print("second mission complete!")
                         print(mission_2_images)
                         break
-                # if type == "MISSION_CURRENT":
-                #     if msg.mission_stat
-                # e == 5:
-                #         print("Mission 2 complete!")
-                #         print(mission_2_images)
-                #         break
 
-                # detects when a waypoint is reached, 
-                # need to add how to get corresponding image
+                # detects when a waypoint is reached;
                 # second mission images saved as 2-----.png
-                elif type == "MISSION_ITEM_REACHED":
+                elif mtype == "MISSION_ITEM_REACHED":
                     print(f"Reached waypoint: {msg.seq}")
                     print(f"Id of most recent image: {shared_states.current_id}")
                     mission_2_images.append((msg.seq, shared_states.current_id))
+                    # Fallback for firmware that never populates mission_state:
+                    # caller can pass the last waypoint number explicitly.
+                    if missionEnd is not None and msg.seq >= missionEnd:
+                        print("second mission complete (last waypoint reached)!")
+                        print(mission_2_images)
+                        break
 
                 count += 1
-                    
+
             except Exception as e:
                 print(f"[ws] connection failed: {e}")
+
+        # End the sonar deterministically now that the mission is done.
+        self.stop()
+        return mission_2_images
 
     # runs forever, need ctrl c to stop
     # ---- run loop ----------------------------------------------------------

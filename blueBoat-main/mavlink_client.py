@@ -114,6 +114,14 @@ class MAVLinkClient:
         self.on_mission_complete = on_mission_complete
         self._mission_complete_fired = False
 
+    def reset_mission_tracking(self):
+        """Allow completion to fire again for the next mission. The fired flag
+        is one-shot per *mission*, not per client lifetime — call this between
+        mission 1 and mission 2 or the second mission can never auto-stop the
+        sonar."""
+        self._mission_complete_fired = False
+        self.state.update_mission_state(None)
+
     # ---- message handling --------------------------------------------------
 
     def _handle(self, packet):

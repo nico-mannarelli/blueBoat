@@ -103,7 +103,10 @@ class DetectionLog:
         }
         self._contacts.append(contact)
         self._next_id += 1
-        shared_states.current_id += 1
+        # current_id must equal the id of the newest contact (and its exported
+        # png), not the next unused id — incrementing separately left it one
+        # ahead of the most recent image.
+        shared_states.current_id = contact["id"]
         return contact
 
     # ---- read --------------------------------------------------------------

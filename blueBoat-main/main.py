@@ -319,8 +319,12 @@ def main():
         
         time.sleep(10)
 
-        # call sonar again for second mission, runs forever 
-        sonar.run_second_mission(auto_reconnect=True) 
+        # Re-arm the completion callback for mission 2 — the fired flag is
+        # one-shot, so without this the second mission can't auto-stop the sonar.
+        mav.reset_mission_tracking()
+
+        # call sonar again for second mission; returns when mission 2 completes
+        sonar.run_second_mission(auto_reconnect=True)
             
         cv2.destroyAllWindows()
 
