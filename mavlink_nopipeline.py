@@ -8,10 +8,11 @@ from shapely.geometry import Point, Polygon
 from pymavlink import mavutil, mavwp
 import pymavlink.dialects.v20.all as dialect
 
+
 # for test
-connection = mavutil.mavlink_connection('udp:0.0.0.0:14445')
+# connection = mavutil.mavlink_connection('udp:0.0.0.0:14445')
 # for boat
-# connection = mavutil.mavlink_connection('tcp:192.168.2.2:5777')
+connection = mavutil.mavlink_connection('tcp:192.168.2.2:5777')
 
 connection.wait_heartbeat()
 print("Heartbeat from system (system %u component %u)" % (connection.target_system, connection.target_component))
@@ -209,16 +210,6 @@ def upload_mission(waypoints):
         mavutil.mavlink.MAV_MISSION_TYPE_MISSION
     )
 
-    # change speed
-    # connection.mav.command_long_send(
-    #     connection.target_system,
-    #     connection.target_component,
-    #     mavutil.mavlink.MAV_CMD_DO_CHANGE_SPEED,
-    #     0,
-    #     1, 0.5, -1, 0, 0, 0, 0
-    # )
-    
-
     def send_item(seq, lat, lon, alt, current=0):
         req = connection.recv_match(
             type=['MISSION_REQUEST', 'MISSION_REQUEST_INT'],
@@ -229,9 +220,7 @@ def upload_mission(waypoints):
             return False
         
         print(f"  Got request for item {req.seq}")
-        #seq = req.seq  #took out for sim 
-
-        
+        seq = req.seq  #took out for sim 
         connection.mav.mission_item_int_send(
             connection.target_system,
             connection.target_component,
@@ -239,7 +228,7 @@ def upload_mission(waypoints):
             mavutil.mavlink.MAV_FRAME_GLOBAL_INT,
             mavutil.mavlink.MAV_CMD_NAV_WAYPOINT,
             current, 1,        # current, autocontinue
-            5, 1.0, 0,        # hold time !!! #, acceptance radius, pass radius
+            5, 1.0, 0,        # hold time !!!, acceptance radius, pass radius
             math.nan,          # yaw
             int(lat * 1e7),
             int(lon * 1e7),
@@ -296,13 +285,11 @@ def upload_mission(waypoints):
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
-from contacts import coords
+from contacts_coords import coords
 WAYPOINTS = [(lat, lon) for lat,lon, *_ in coords]
-
 
 # loiters for 10 secs before starting new mission
 # upload_mission(WAYPOINTS) # starts new mission to new waypoints and ends 
-#WAYPOINTS = [(lat, lon) for lat,lon, *_ in coords]
 
 #for manual upload 
 # will start right away if already in auto mode
@@ -320,7 +307,8 @@ while True:
         continue
     
     ###check if mission complete and upload mission ready
-    if msg.mission_state == 5 and upload_mission(WAYPOINTS):  
+    ## if msg.mission_state == 5 and upload_mission(WAYPOINTS):  
+    if upload_mission(WAYPOINTS):
         set_new_mission()
 
         print("Starting new mission")
@@ -335,7 +323,7 @@ while True:
             0,0,0,0,0,0
         )
         print("manual")
-        time.sleep(5)
+        time.sleep(1)
         connection.mav.command_long_send(
             connection.target_system,
             connection.target_component,
@@ -345,7 +333,7 @@ while True:
             10,0,0,0,0,0
         )
         print("auto")
-        time.sleep(5)
+        time.sleep(1)
         
         break
         
@@ -390,4 +378,5 @@ while True:
         break
         
     
+
 

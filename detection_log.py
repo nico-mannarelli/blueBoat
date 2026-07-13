@@ -27,6 +27,8 @@ import time
 
 from shapely.geometry import Point, Polygon
 
+import shared_states
+
 def haversine_m(lat1, lon1, lat2, lon2):
     """Great-circle distance between two lat/lon points, in metres."""
     R = 6_371_000.0
@@ -101,6 +103,7 @@ class DetectionLog:
         }
         self._contacts.append(contact)
         self._next_id += 1
+        shared_states.current_id += 1
         return contact
 
     # ---- read --------------------------------------------------------------
@@ -152,6 +155,7 @@ class DetectionLog:
         points = [(38.143789, -76.524991), 
         (38.143895, -76.524179), (38.143750, -76.523869), (38.141055, -76.526649), (38.141553, -76.527268)]
         fence = Polygon(points)
+        #plt.plot(fence.exterior.xy)
 
         points2 = [(38.143660, -76.523602), (38.143441, -76.523113), (38.140821, -76.525738), (38.140964, -76.526389)]
         fence2 = Polygon(points2)
@@ -159,10 +163,13 @@ class DetectionLog:
         rows = [r for r in self.to_records() if r["hits"] >= min_hits]
 
         ### added to use points inside fence for pipeline
+        ### comment out when not at OAG
         def inside_fence(r):
             p = Point(r["lat"], r["lon"])
             return fence.contains(p) or fence2.contains(p)
         rows = [r for r in rows if inside_fence(r)]
+        ###
+
 
         if largest is not None:
             def area(r):
@@ -171,7 +178,8 @@ class DetectionLog:
             # pick the N largest, then restore detection (track) order
             rows = sorted(rows, key=area, reverse=True)[:largest]
             rows = sorted(rows, key=lambda r: r["id"])
-        return [(r["lat"], r["lon"], third) for r in rows]
+
+        return [(r["lat"], r["lon"], r["id"]) for r in rows] # use id to get matching png
 
     def to_coords_literal(self, var="coords", third=0, min_hits=1, largest=None):
         """The list above rendered as a paste-ready Python assignment, e.g.

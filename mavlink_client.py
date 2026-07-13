@@ -27,9 +27,6 @@ import time
 
 import websocket
 
-#from mavcon import connection
-
-
 # MISSION_CURRENT.mission_state enum (MAVLink MISSION_STATE):
 #   0 UNKNOWN  1 NO_MISSION  2 NOT_STARTED  3 ACTIVE  4 PAUSED  5 COMPLETE
 MISSION_STATE_COMPLETE = 5
@@ -50,7 +47,6 @@ class VehicleState:
         self._heading = None   # degrees, 0-360, from ATTITUDE.yaw
         self._ts      = None
         self._mission_state = None   # MISSION_CURRENT.mission_state (5 = COMPLETE)
-        self._mission_total = None   # MISSION_CURRENT.total (waypoint count)
 
     def update_gps(self, lat, lon, alt_m, timestamp_ms=None):
         with self._lock:
@@ -67,19 +63,10 @@ class VehicleState:
         with self._lock:
             self._mission_state = mission_state
 
-    def update_mission_total(self, total):
-        with self._lock:
-            self._mission_total = total
-
     @property
     def mission_state(self):
         with self._lock:
             return self._mission_state
-
-    @property
-    def mission_total(self):
-        with self._lock:
-            return self._mission_total
 
     @property
     def fix(self):
@@ -108,45 +95,6 @@ def _unwrap(v):
     return v
 
 
-# MAV_MISSION_STATE variant names, with and without the enum's common prefix
-# (Rust serde often serializes an enum by its variant NAME rather than the
-# numeric value the .xml/dialect assigns it, unlike "Bounded" scalar wrappers
-# such as {"type":"Bounded","value":N}). We accept int, the Bounded wrapper,
-# and a bare name string so we don't silently fail to match "COMPLETE".
-_MISSION_STATE_NAMES = {
-    "MISSION_STATE_UNKNOWN": 0,     "UNKNOWN": 0,
-    "MISSION_STATE_NO_MISSION": 1,  "NO_MISSION": 1,
-    "MISSION_STATE_NOT_STARTED": 2, "NOT_STARTED": 2,
-    "MISSION_STATE_ACTIVE": 3,      "ACTIVE": 3,
-    "MISSION_STATE_PAUSED": 4,      "PAUSED": 4,
-    "MISSION_STATE_COMPLETE": 5,    "COMPLETE": 5,
-}
-
-
-def _mission_state_value(v):
-    """Normalize MISSION_CURRENT.mission_state to an int (or None), across
-    mavlink2rest's possible encodings: a plain int, {"type":"Bounded",
-    "value":N}, or a bare/enum-tagged variant-name string."""
-    if v is None:
-        return None
-    if isinstance(v, dict):
-        if "value" in v:
-            v = v["value"]
-        else:
-            v = v.get("type", v)   # some serde enums tag by name only
-    if isinstance(v, str):
-        name = v.strip().upper()
-        if name in _MISSION_STATE_NAMES:
-            return _MISSION_STATE_NAMES[name]
-        try:
-            return int(name)
-        except ValueError:
-            return None
-    if isinstance(v, (int, float)):
-        return int(v)
-    return None
-
-
 class MAVLinkClient:
     """WebSocket client for mavlink2rest.
 
@@ -165,22 +113,8 @@ class MAVLinkClient:
         # is COMPLETE. main.py wires this to sonar.stop() to end the survey.
         self.on_mission_complete = on_mission_complete
         self._mission_complete_fired = False
-        #self._logged_mission_current = False   # one-shot raw-payload debug log
 
     # ---- message handling --------------------------------------------------
-
-    def _fire_mission_complete(self, reason):
-        """Fire on_mission_complete exactly once, from whichever signal got
-        there first (mission_state or MISSION_ITEM_REACHED)."""
-        if self._mission_complete_fired:
-            return
-        self._mission_complete_fired = True
-        print(f"[mavlink] mission COMPLETE ({reason})")
-        if self.on_mission_complete:
-            try:
-                self.on_mission_complete()
-            except Exception as e:
-                print(f"[mavlink] on_mission_complete error: {e}")
 
     def _handle(self, packet):
         if not isinstance(packet, dict):
@@ -190,42 +124,19 @@ class MAVLinkClient:
         msg_type = str(msg.get("type", "")).upper()
 
         if msg_type == "MISSION_CURRENT":
-            # One-time diagnostic: print the raw field so we can see exactly
-            # how mavlink2rest encodes mission_state on this autopilot
-            # (int? {"type":"Bounded","value":N}? a bare variant-name string?).
-            if not self._logged_mission_current:
-                self._logged_mission_current = True
-                print(f"[mavlink] MISSION_CURRENT sample: {msg}")
-
-            # `total` (waypoint count) is a plain, always-populated field —
-            # keep it so MISSION_ITEM_REACHED below can tell "last waypoint".
-            total = _unwrap(msg.get("total", 0))
-            if total:
-                self.state.update_mission_total(total)
-
-            # mission_state may be absent on some autopilots, or present in a
-            # shape _unwrap() alone can't read (e.g. serialized by variant
-            # name rather than a numeric wrapper) — _mission_state_value()
-            # normalizes all of those. It must not be the ONLY completion
-            # signal though — see MISSION_ITEM_REACHED below.
-            ms = _mission_state_value(msg.get("mission_state", None))
+            # mission_state is only populated on newer autopilots; absent -> None
+            ms = _unwrap(msg.get("mission_state", None))
             if ms is not None:
                 self.state.update_mission_state(ms)
-                if ms == MISSION_STATE_COMPLETE:
-                    self._fire_mission_complete("mission_state=5")
-            return
-
-        if msg_type == "MISSION_ITEM_REACHED":
-            # Firmware-independent completion signal: seq/total have been in
-            # MAVLink far longer than mission_state, so this fires even on
-            # autopilots that never populate MISSION_CURRENT.mission_state
-            # (the bug this was added for: the survey never ended on its own
-            # because mission_state was always absent).
-            seq   = _unwrap(msg.get("seq", -1))
-            total = self.state.mission_total
-            if total and seq >= total - 1:
-                self._fire_mission_complete(
-                    f"reached final waypoint {seq}/{total}")
+                if (ms == MISSION_STATE_COMPLETE
+                        and not self._mission_complete_fired):
+                    self._mission_complete_fired = True
+                    print("[mavlink] mission COMPLETE (mission_state=5)")
+                    if self.on_mission_complete:
+                        try:
+                            self.on_mission_complete()
+                        except Exception as e:
+                            print(f"[mavlink] on_mission_complete error: {e}")
             return
 
         if msg_type == "GLOBAL_POSITION_INT":
@@ -281,7 +192,6 @@ class MAVLinkClient:
                     on_close=self._on_close,
                 )
                 self._ws.run_forever()
-
             except Exception as e:
                 print(f"[mavlink] connection failed: {e}")
 

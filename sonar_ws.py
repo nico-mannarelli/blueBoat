@@ -16,12 +16,12 @@ import websocket
 from brping.pingmessage import PingMessage
 from brping import definitions
 
-
 from pymavlink import mavutil
 from mavcon import connection
 
-_OS_PING_PARAMS = definitions.OMNISCAN450_OS_PING_PARAMS
+import shared_states
 
+_OS_PING_PARAMS = definitions.OMNISCAN450_OS_PING_PARAMS
 
 class SonarLinkClient:
     def __init__(
@@ -159,12 +159,57 @@ class SonarLinkClient:
                 self.stop()
                 break
 
-    # ---- run loop ----------------------------------------------------------
-    def run_forever(self, auto_reconnect=True):
+
+
+    # should have sonar run and check for mission sequence at same time,
+    # then for the second mission the sonar can run forever
+    def start_sonar_thread(self, auto_reconnect=True):
+        def _run():
+            while not self._stop:
+                try:
+                    # Always fetch a fresh session ID before connecting
+                    self.fetch_session_id()
+
+                    url = (
+                        f"ws://{self.host}:{self.port}"
+                        f"/connect_ws?session_id={self.session_id}"
+                    )
+
+                    self._ws = websocket.WebSocketApp(
+                        url,
+                        on_message=self._on_message,
+                        on_open=self._on_open,
+                        on_error=self._on_error,
+                        on_close=self._on_close,
+                    )
+
+                    print("[ws] sonar connecting...")
+                    self._ws.run_forever()   # BLOCKS this thread only
+
+                except Exception as e:
+                    print(f"[ws] sonar connection failed: {e}")
+
+                # Stop or no reconnect → exit thread
+                if self._stop or not auto_reconnect:
+                    print("[ws] sonar thread exiting (stop or no reconnect)")
+                    break
+
+                print("[ws] sonar reconnecting in 3s...")
+                time.sleep(3)
+
+        # Launch sonar websocket in background thread
+        threading.Thread(target=_run, daemon=True, name="sonar-ws").start()
+        print("[ws] sonar thread started")
+
+    # 
+    def run_first_mission(self, missionEnd, auto_reconnect=True):
         if self.idle_timeout and self.idle_timeout > 0 and self._watchdog is None:
             self._watchdog = threading.Thread(target=self._watch_idle,
                                               daemon=True, name="sonar-idle")
             self._watchdog.start()
+
+        self.start_sonar_thread()
+
         connection.mav.command_long_send(
                 connection.target_system,
                 connection.target_component,
@@ -172,43 +217,113 @@ class SonarLinkClient:
                 0,
                 mavutil.mavlink.MAVLINK_MSG_ID_MISSION_CURRENT, 500000, 0, 0, 0, 0, 0
                 )
-        while not self._stop:
+        
+        msg = connection.recv_match(
+                    type=['MISSION_CURRENT'],
+                    blocking=True, timeout=5
+                )
+        
+        count = 0
+        while True and missionEnd != 0:
             try:
-                self.fetch_session_id()
-                url = (
-                    f"ws://{self.host}:{self.port}"
-                    f"/connect_ws?session_id={self.session_id}"
-                )
-                self._ws = websocket.WebSocketApp(
-                    url,
-                    on_message=self._on_message,
-                    on_open=self._on_open,
-                    on_error=self._on_error,
-                    on_close=self._on_close,
-                )
-
-
                 msg = connection.recv_match(
                     type=['MISSION_CURRENT'],
                     blocking=True, timeout=5
                 )
-                print(msg.seq)
-                if msg.seq == 3:
-                    print("break####################")
+
+                if msg.mission_state == 5:
+                    print("Mission 1 complete!")
                     break
 
-                
-                self._ws.run_forever() # doesnt pring any seq but sonar comes up and continues
-                #self.run_forever() lets msg seq print but doesnt pull up sonar, ends at msq.seq==
-
-                print("!!!!!!!!!!!!!sonar")
-                
-
-
+                # if msg:
+                #     print(msg.seq)
+                #     #print(count) # for testing
+                #     if msg.seq == missionEnd: #msg.seq = missionEnd 
+                #         print("first mission complete!")
+                #         break
+                count += 1
+                    
             except Exception as e:
                 print(f"[ws] connection failed: {e}")
 
-            if self._stop or not auto_reconnect:
-                break
-            print("[ws] reconnecting in 3s...")
-            time.sleep(3)
+    #           
+    def run_second_mission(self, auto_reconnect=True):
+        shared_states.mission_1_png = False
+        if self.idle_timeout and self.idle_timeout > 0 and self._watchdog is None:
+            self._watchdog = threading.Thread(target=self._watch_idle,
+                                              daemon=True, name="sonar-idle")
+            self._watchdog.start()
+
+        self.start_sonar_thread()
+
+        connection.mav.command_long_send(
+                connection.target_system,
+                connection.target_component,
+                mavutil.mavlink.MAV_CMD_REQUEST_MESSAGE,
+                0,
+                mavutil.mavlink.MAVLINK_MSG_ID_MISSION_CURRENT, 500000, 0, 0, 0, 0, 0
+                )
+        mission_2_images = [(0,0)]
+        count = 0
+        while True:
+            try:
+                msg = connection.recv_match(blocking=True, timeout=5)
+                print(msg)
+                print("!!!!!!!")
+                type = msg.get_type() 
+                if type == "MISSION_CURRENT":
+                    print(msg.seq)
+                    #print(count) # for testing
+                    if msg.seq == 4: #msg.seq = missionEnd 
+                        print("second mission complete!")
+                        print(mission_2_images)
+                        break
+                # if type == "MISSION_CURRENT":
+                #     if msg.mission_stat
+                # e == 5:
+                #         print("Mission 2 complete!")
+                #         print(mission_2_images)
+                #         break
+
+                # detects when a waypoint is reached, 
+                # need to add how to get corresponding image
+                # second mission images saved as 2-----.png
+                elif type == "MISSION_ITEM_REACHED":
+                    print(f"Reached waypoint: {msg.seq}")
+                    print(f"Id of most recent image: {shared_states.current_id}")
+                    mission_2_images.append((msg.seq, shared_states.current_id))
+
+                count += 1
+                    
+            except Exception as e:
+                print(f"[ws] connection failed: {e}")
+
+    # runs forever, need ctrl c to stop
+    # ---- run loop ----------------------------------------------------------
+    # def run_forever(self, auto_reconnect=True):
+    #     if self.idle_timeout and self.idle_timeout > 0 and self._watchdog is None:
+    #         self._watchdog = threading.Thread(target=self._watch_idle,
+    #                                           daemon=True, name="sonar-idle")
+    #         self._watchdog.start()
+    #     while not self._stop:
+    #         try:
+    #             self.fetch_session_id()
+    #             url = (
+    #                 f"ws://{self.host}:{self.port}"
+    #                 f"/connect_ws?session_id={self.session_id}"
+    #             )
+    #             self._ws = websocket.WebSocketApp(
+    #                 url,
+    #                 on_message=self._on_message,
+    #                 on_open=self._on_open,
+    #                 on_error=self._on_error,
+    #                 on_close=self._on_close,
+    #             )
+    #             self._ws.run_forever(skip_utf8_validation=True)
+    #         except Exception as e:
+    #             print(f"[ws] connection failed: {e}")
+
+    #         if self._stop or not auto_reconnect:
+    #             break
+    #         print("[ws] reconnecting in 3s...")
+    #         time.sleep(3)

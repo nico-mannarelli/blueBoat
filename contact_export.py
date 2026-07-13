@@ -31,6 +31,8 @@ import cv2
 
 from sonar_display import colorize
 
+import shared_states
+
 
 class ContactExporter:
     def __init__(self, out_dir="sonar_web_data"):
@@ -65,7 +67,10 @@ class ContactExporter:
         gray:    the raw waterfall ndarray at the moment of detection.
         """
         cid = contact["id"]
-        img_name = f"{cid:06d}.png"
+        if shared_states.mission_1_png:
+            img_name = f"{cid:06d}.png"
+        else:
+            img_name = f"2{cid:05d}.png"
         img_path = os.path.join(self.img_dir, img_name)
 
         disp = colorize(gray, palette=palette, contrast=contrast,

@@ -26,7 +26,7 @@ Run against the boat:
 Run against the mock server:
     HOST=127.0.0.1 python main.py
 """
-
+import time
 import math
 import os
 
@@ -40,6 +40,11 @@ from detection_log import DetectionLog
 from mavlink_client import MAVLinkClient, VehicleState
 from planner_handoff import send_to_planner
 from export_coords import export_from_log
+from contacts_coords import coords
+from contact_export import ContactExporter
+from sonar_display import colorize
+from api import api_upload
+
 
 HOST     = os.environ.get("HOST", "192.168.2.2")
 PORT     = int(os.environ.get("SONAR_PORT", 7077))
@@ -69,7 +74,7 @@ SURVEY_IDLE_TIMEOUT = float(os.environ.get("SURVEY_IDLE_TIMEOUT", "0"))
 #                   and starts the new mission (e.g. "python mavlink.py").
 POPULATE_FILE = os.environ.get("POPULATE_FILE")
 POPULATE_VAR  = os.environ.get("POPULATE_VAR", "WAYPOINTS")
-RUN_AFTER     = "python mavlink.py"
+RUN_AFTER     = "python mavlink.py"    ############################## 
 # If set, write the contact list as a Python array (coords = [(lat, lon, 0), ...])
 # to this path at the end of the run. e.g. COORDS_OUT=contacts_coords.py
 COORDS_OUT = os.environ.get("COORDS_OUT")
@@ -91,6 +96,7 @@ PLANNER_MIN_HITS = int(os.environ.get("PLANNER_MIN_HITS", "2"))
 # NOTE: port=0 / starboard=1 mapping mirrors the XTF channel order but should
 # be confirmed against the live stream on the boat.
 CHANNEL_SIDE_OFFSET = {0: -90.0, 1: +90.0}
+
 
 # ---- shared state ----------------------------------------------------------
 
@@ -252,7 +258,8 @@ def main():
     mav.start()
 
     try:
-        sonar.run_forever(auto_reconnect=True)
+        ###sonar.run_forever(auto_reconnect=True)
+        sonar.run_first_mission(4, auto_reconnect=True)  # set the last waypoint value, will no reach last waypoint
     finally:
         print(f"\n[main] mission complete: {len(log)} unique contact(s)")
         for r in log.to_records():
@@ -302,9 +309,20 @@ def main():
         elif RUN_AFTER and not revisit:
             print(f"[main] no contacts — skipping uploader ({RUN_AFTER})")
 
-        cv2.destroyAllWindows()
 
-        mav.start()
+        # upload to website the selected coords pictures after mission 1
+        # COORDINATES = [(lat, lon, cid) for lat,lon,cid in coords]
+        # for lat,lon,cid in COORDINATES:
+        #     api_upload(lat, lon, cid)
+        #     print(cid)
+
+        
+        time.sleep(10)
+
+        # call sonar again for second mission, runs forever 
+        sonar.run_second_mission(auto_reconnect=True) 
+            
+        cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":

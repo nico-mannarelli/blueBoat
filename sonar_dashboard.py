@@ -181,7 +181,7 @@ class SonarDashboard:
         fix = vehicle.fix if vehicle is not None else None
 
 
- ###
+        # creates images of all coords
         if log is not None:
             for c in log.contacts:
                 if c["id"] not in self._exported_ids:
@@ -189,6 +189,7 @@ class SonarDashboard:
                                         contrast=self.contrast, gamma=self.gamma,
                                         brightness=self.brightness)
                     self._exported_ids.add(c["id"])
+
 
 
         self._header(canvas, ping, len(objects))

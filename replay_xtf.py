@@ -272,7 +272,7 @@ def main():
                     help="Print file info and exit")
     ap.add_argument("--no-detect", action="store_true",
                     help="Turn detection off: show clean imagery only, no markers, no contacts")
-    ap.add_argument("--detector", default="cfar",
+    ap.add_argument("--detector", default="blob",
                     choices=["both", "cfar", "classical", "roi", "blob", "blob_cfar"],
                     help="Detector to visualize (default: cfar)")
     ap.add_argument("--cfar-k", type=float, default=None, dest="cfar_k")
