@@ -16,6 +16,10 @@ import websocket
 from brping.pingmessage import PingMessage
 from brping import definitions
 
+
+from pymavlink import mavutil
+from mavcon import connection
+
 _OS_PING_PARAMS = definitions.OMNISCAN450_OS_PING_PARAMS
 
 
@@ -161,6 +165,13 @@ class SonarLinkClient:
             self._watchdog = threading.Thread(target=self._watch_idle,
                                               daemon=True, name="sonar-idle")
             self._watchdog.start()
+        connection.mav.command_long_send(
+                connection.target_system,
+                connection.target_component,
+                mavutil.mavlink.MAV_CMD_REQUEST_MESSAGE,
+                0,
+                mavutil.mavlink.MAVLINK_MSG_ID_MISSION_CURRENT, 500000, 0, 0, 0, 0, 0
+                )
         while not self._stop:
             try:
                 self.fetch_session_id()
@@ -175,7 +186,25 @@ class SonarLinkClient:
                     on_error=self._on_error,
                     on_close=self._on_close,
                 )
-                self._ws.run_forever(skip_utf8_validation=True)
+
+
+                msg = connection.recv_match(
+                    type=['MISSION_CURRENT'],
+                    blocking=True, timeout=5
+                )
+                print(msg.seq)
+                if msg.seq == 3:
+                    print("break####################")
+                    break
+
+                
+                self._ws.run_forever() # doesnt pring any seq but sonar comes up and continues
+                #self.run_forever() lets msg seq print but doesnt pull up sonar, ends at msq.seq==
+
+                print("!!!!!!!!!!!!!sonar")
+                
+
+
             except Exception as e:
                 print(f"[ws] connection failed: {e}")
 

@@ -25,6 +25,7 @@ end-of-survey planner hand-off), but are never invoked automatically.
 import math
 import time
 
+from shapely.geometry import Point, Polygon
 
 def haversine_m(lat1, lon1, lat2, lon2):
     """Great-circle distance between two lat/lon points, in metres."""
@@ -148,7 +149,21 @@ class DetectionLog:
         contacts were first seen as the boat scanned), which follows the survey
         track — so a mission visiting them sweeps the area instead of jumping
         around. `largest` only affects *selection*, not order."""
+        points = [(38.143789, -76.524991), 
+        (38.143895, -76.524179), (38.143750, -76.523869), (38.141055, -76.526649), (38.141553, -76.527268)]
+        fence = Polygon(points)
+
+        points2 = [(38.143660, -76.523602), (38.143441, -76.523113), (38.140821, -76.525738), (38.140964, -76.526389)]
+        fence2 = Polygon(points2)
+
         rows = [r for r in self.to_records() if r["hits"] >= min_hits]
+
+        ### added to use points inside fence for pipeline
+        def inside_fence(r):
+            p = Point(r["lat"], r["lon"])
+            return fence.contains(p) or fence2.contains(p)
+        rows = [r for r in rows if inside_fence(r)]
+
         if largest is not None:
             def area(r):
                 w, h = (list(r["size_px"]) + [0, 0])[:2]

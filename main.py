@@ -69,7 +69,7 @@ SURVEY_IDLE_TIMEOUT = float(os.environ.get("SURVEY_IDLE_TIMEOUT", "0"))
 #                   and starts the new mission (e.g. "python mavlink.py").
 POPULATE_FILE = os.environ.get("POPULATE_FILE")
 POPULATE_VAR  = os.environ.get("POPULATE_VAR", "WAYPOINTS")
-RUN_AFTER     = os.environ.get("RUN_AFTER")
+RUN_AFTER     = "python mavlink.py"
 # If set, write the contact list as a Python array (coords = [(lat, lon, 0), ...])
 # to this path at the end of the run. e.g. COORDS_OUT=contacts_coords.py
 COORDS_OUT = os.environ.get("COORDS_OUT")
@@ -84,7 +84,7 @@ COORDS_MIN_HITS = int(os.environ.get("COORDS_MIN_HITS", "1"))
 # disables it. We send the largest PLANNER_LARGEST contacts (default 50), each
 # seen on >= PLANNER_MIN_HITS pings (default 2, to drop one-ping flickers).
 SEND_TO_PLANNER = os.environ.get("SEND_TO_PLANNER", "1") not in ("0", "", "false", "False")
-PLANNER_LARGEST = int(os.environ.get("PLANNER_LARGEST", "50"))
+PLANNER_LARGEST = int(os.environ.get("PLANNER_LARGEST", "10"))
 PLANNER_MIN_HITS = int(os.environ.get("PLANNER_MIN_HITS", "2"))
 
 # Side-scan look direction per channel, as an offset from vehicle heading.
@@ -303,6 +303,8 @@ def main():
             print(f"[main] no contacts — skipping uploader ({RUN_AFTER})")
 
         cv2.destroyAllWindows()
+
+        mav.start()
 
 
 if __name__ == "__main__":

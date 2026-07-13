@@ -41,6 +41,8 @@ import cv2
 
 from sonar_display import colorize
 
+from contact_export import ContactExporter ####
+
 # ---- theme (all colours BGR) ----------------------------------------------
 BG       = (24, 20, 17)
 PANEL    = (40, 34, 28)
@@ -139,7 +141,7 @@ def _nice_step(span, target_ticks=6):
 
 class SonarDashboard:
     def __init__(self, title="OmniScan 450", palette="blue", source_label="",
-                 mode="LIVE", contrast=1.12, gamma=0.85, brightness=0.0):
+                 mode="LIVE", contrast=1.12, gamma=0.85, brightness=0.0, web_data_dir="sonar_web/data"):
         self.window = title
         self.title = title
         self.palette = palette
@@ -154,6 +156,8 @@ class SonarDashboard:
         self._t0 = time.time()
         self._last_t = time.time()
         self._fps = None
+        self.exporter = ContactExporter(web_data_dir) ####
+        self._exported_ids = set()  ####
 
     # -- helpers ------------------------------------------------------------
 
@@ -175,6 +179,17 @@ class SonarDashboard:
         ping = ping or {}
         objects = objects or []
         fix = vehicle.fix if vehicle is not None else None
+
+
+ ###
+        if log is not None:
+            for c in log.contacts:
+                if c["id"] not in self._exported_ids:
+                    self.exporter.export(c, gray, palette=self.palette,
+                                        contrast=self.contrast, gamma=self.gamma,
+                                        brightness=self.brightness)
+                    self._exported_ids.add(c["id"])
+
 
         self._header(canvas, ping, len(objects))
         wf_x1 = W - SIDEBAR_W - PAD * 2

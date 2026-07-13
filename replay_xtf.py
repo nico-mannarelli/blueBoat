@@ -43,7 +43,7 @@ MIN_PWR_DB = -90.0
 MAX_PWR_DB = -40.0
 _WINDOW    = "OmniScan 450 - XTF Replay"
 # Display palette: "blue" (default), "amber" (SonarView-style), or "gray". Cosmetic only.
-PALETTE    = os.environ.get("SONAR_PALETTE", "blue")
+PALETTE    = os.environ.get("SONAR_PALETTE", "amber")
 
 
 # ---- sample conversion -----------------------------------------------------
