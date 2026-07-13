@@ -1,0 +1,171 @@
+from pymavlink import mavutil, mavwp
+import pymavlink.dialects.v20.all as dialect
+
+vehicle = mavutil.mavlink_connection('udp:0.0.0.0:14445')
+# vehicle = mavutil.mavlink_connection('tcp:192.168.2.2:5777')
+
+vehicle.wait_heartbeat()
+print("Heartbeat from system (system %u component %u)" % (vehicle.target_system, vehicle.target_component))
+
+#west
+# fence_list = ([38.143789, -76.524991, dialect.MAV_CMD_NAV_FENCE_POLYGON_VERTEX_EXCLUSION], # top left
+#               [38.143895, -76.524179, dialect.MAV_CMD_NAV_FENCE_POLYGON_VERTEX_EXCLUSION], 
+#               [38.143750, -76.523869, dialect.MAV_CMD_NAV_FENCE_POLYGON_VERTEX_EXCLUSION],
+#               [38.141055, -76.526649, dialect.MAV_CMD_NAV_FENCE_POLYGON_VERTEX_EXCLUSION],  # bottom right
+#               [38.141553, -76.527268, dialect.MAV_CMD_NAV_FENCE_POLYGON_VERTEX_EXCLUSION]
+#               )
+
+#east
+# fence_list = ([38.143660, -76.523602, dialect.MAV_CMD_NAV_FENCE_POLYGON_VERTEX_EXCLUSION],
+#                [38.143441, -76.523113, dialect.MAV_CMD_NAV_FENCE_POLYGON_VERTEX_EXCLUSION],
+#                  [38.140821, -76.525738, dialect.MAV_CMD_NAV_FENCE_POLYGON_VERTEX_EXCLUSION], 
+#                  [38.140964, -76.526389, dialect.MAV_CMD_NAV_FENCE_POLYGON_VERTEX_EXCLUSION])
+
+# geofence
+fence_list = ([38.1439, -76.525077, dialect.MAV_CMD_NAV_FENCE_POLYGON_VERTEX_EXCLUSION], # top left
+              [38.143969, -76.524120, dialect.MAV_CMD_NAV_FENCE_POLYGON_VERTEX_EXCLUSION], 
+              [38.143830, -76.523709, dialect.MAV_CMD_NAV_FENCE_POLYGON_VERTEX_EXCLUSION],
+               [38.143567, -76.523026, dialect.MAV_CMD_NAV_FENCE_POLYGON_VERTEX_EXCLUSION],
+               [38.143276, -76.523030, dialect.MAV_CMD_NAV_FENCE_POLYGON_VERTEX_EXCLUSION],
+                 [38.140553, -76.525757, dialect.MAV_CMD_NAV_FENCE_POLYGON_VERTEX_EXCLUSION], 
+                 [38.140753, -76.526599, dialect.MAV_CMD_NAV_FENCE_POLYGON_VERTEX_EXCLUSION],
+              [38.140936, -76.526892, dialect.MAV_CMD_NAV_FENCE_POLYGON_VERTEX_EXCLUSION],  # bottom right
+              [38.141681, -76.527589, dialect.MAV_CMD_NAV_FENCE_POLYGON_VERTEX_EXCLUSION]
+              )
+
+#both zones
+# fence_list = ([38.143789, -76.524991, dialect.MAV_CMD_NAV_FENCE_POLYGON_VERTEX_EXCLUSION], # top left
+#               [38.143895, -76.524179, dialect.MAV_CMD_NAV_FENCE_POLYGON_VERTEX_EXCLUSION], 
+#               [38.143750, -76.523869, dialect.MAV_CMD_NAV_FENCE_POLYGON_VERTEX_EXCLUSION],
+#               [38.143660, -76.523602, dialect.MAV_CMD_NAV_FENCE_POLYGON_VERTEX_EXCLUSION], # east
+#                [38.143441, -76.523113, dialect.MAV_CMD_NAV_FENCE_POLYGON_VERTEX_EXCLUSION],
+#                  [38.140821, -76.525738, dialect.MAV_CMD_NAV_FENCE_POLYGON_VERTEX_EXCLUSION], 
+#                  [38.140964, -76.526389, dialect.MAV_CMD_NAV_FENCE_POLYGON_VERTEX_EXCLUSION],
+#               [38.141055, -76.526649, dialect.MAV_CMD_NAV_FENCE_POLYGON_VERTEX_EXCLUSION],  # bottom right
+#               [38.141553, -76.527268, dialect.MAV_CMD_NAV_FENCE_POLYGON_VERTEX_EXCLUSION]
+#               )
+
+
+class Fence():
+    
+    def add_polygon(self, polygon, command):
+        fence_count = 0
+        message = dialect.MAVLink_param_request_read_message(target_system=vehicle.target_system,
+                                                         target_component=vehicle.target_component,
+                                                         param_id=FENCE_TOTAL,
+                                                         param_index=PARAM_INDEX)
+        vehicle.mav.send(message)
+        while True:
+            message = vehicle.recv_match(type=dialect.MAVLink_param_value_message.msgname,
+                                             blocking=True)
+            # convert the message to dictionary
+            message = message.to_dict()
+            if message["param_id"] == "FENCE_TOTAL":
+                print("FENCE_TOTAL parameter original:", message)
+                fence_count = int(message["param_value"])
+                break
+            
+        message = dialect.MAVLink_mission_count_message(target_system=vehicle.target_system,
+                                                target_component=vehicle.target_component,
+                                                count=len(polygon),
+                                                mission_type=dialect.MAV_MISSION_TYPE_MISSION)
+        vehicle.mav.send(message)
+        message = vehicle.recv_match(blocking=True)
+        message = message.to_dict()
+        print(message)
+            
+        count = len(polygon)
+        for i in range(0, count):
+            coord = polygon[i]
+            lat = coord[0]
+            lon = coord[1]
+            
+            m = mavutil.mavlink.MAVLink_mission_item_int_message(
+                    vehicle.target_system,
+                    vehicle.target_component,
+                    0,    # seq
+                    mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,    # frame
+                    command,    # command
+                    0,    # current
+                    0,    # autocontinue
+                    count, # param1,
+                    0.0,  # param2,
+                    0.0,  # param3
+                    0.0,  # param4
+                    int(lat*1e7),  # x (latitude)
+                    int(lon*1e7),  # y (longitude)
+                    0,                     # z (altitude)
+                    mavutil.mavlink.MAV_MISSION_TYPE_FENCE,
+                )
+            vehicle.mav.send(m)
+        vehicle.param_set_send('FENCE_TOTAL', count, 3)
+        
+    def add_polygon_mission(self, target_locations):
+        message = dialect.MAVLink_mission_count_message(target_system=vehicle.target_system,
+                                                target_component=vehicle.target_component,
+                                                count=len(target_locations),
+                                                mission_type=dialect.MAV_MISSION_TYPE_FENCE)
+
+        # send mission count message to the vehicle
+        vehicle.mav.send(message)
+
+        message = vehicle.recv_match(blocking=True)
+        print(message)
+        
+        # this loop will run until receive a valid MISSION_ACK message
+        while True:
+        
+            # catch a message
+            message = vehicle.recv_match(blocking=True)
+        
+            # convert this message to dictionary
+            message = message.to_dict()
+        
+            # check this message is MISSION_REQUEST
+            if message["mavpackettype"] == dialect.MAVLink_mission_request_message.msgname:
+        
+                # check this request is for mission items
+                if message["mission_type"] == dialect.MAV_MISSION_TYPE_FENCE:
+        
+                    # get the sequence number of requested mission item
+                    seq = message["seq"]
+                    
+                    print(message)
+
+                    # create mission item int message that contains the home location (0th mission item)
+                    coord = target_locations[seq]
+                    lat = coord[0]
+                    lon = coord[1]
+                    message = dialect.MAVLink_mission_item_int_message(target_system=vehicle.target_system,
+                                                                       target_component=vehicle.target_component,
+                                                                       seq=seq,
+                                                                       frame=dialect.MAV_FRAME_GLOBAL,
+                                                                       command=coord[2],
+                                                                       current=0,
+                                                                       autocontinue=0,
+                                                                       param1=len(target_locations),
+                                                                       param2=0,
+                                                                       param3=0,
+                                                                       param4=0,
+                                                                       x=int(lat*1e7),  # x (latitude)
+                                                                       y=int(lon*1e7),  # y (longitude)
+                                                                       z=0,
+                                                                       mission_type=dialect.MAV_MISSION_TYPE_FENCE)
+        
+                    # send the mission item int message to the vehicle
+                    vehicle.mav.send(message)
+        
+            # check this message is MISSION_ACK
+            elif message["mavpackettype"] == dialect.MAVLink_mission_ack_message.msgname:
+        
+                # check this acknowledgement is for mission and it is accepted
+                if message["mission_type"] == dialect.MAV_MISSION_TYPE_FENCE and \
+                        message["type"] == dialect.MAV_MISSION_ACCEPTED:
+                    # break the loop since the upload is successful
+                    print("Mission upload is successful")
+                    break
+                elif message["mission_type"] == dialect.MAV_MISSION_TYPE_FENCE:
+                    print (message)
+        
+fence = Fence()
+fence.add_polygon_mission(fence_list)

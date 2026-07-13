@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OmniScan 450 — Contact Map</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  :root{
+    --bg:      #111418;
+    --panel:   #1c2228;
+    --panel-hi:#242b32;
+    --border:  #3a4148;
+    --grid:    #2f363d;
+    --text:    #f0eeea;
+    --muted:   #a8a89e;
+    --faint:   #787870;
+    --accent:  #5cbceb;
+    --good:    #78d278;
+    --warn:    #f5b446;
+    --bad:     #eb5050;
+    --detect:  #ffeb5a;
+    --hough:   #5adcd0;
+    --font-display: 'Bahnschrift', 'Segoe UI Semibold', system-ui, sans-serif;
+    --font-body: 'Segoe UI', system-ui, sans-serif;
+    --font-mono: 'Cascadia Mono', 'Consolas', monospace;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; margin:0; background:var(--bg); color:var(--text);
+             font-family:var(--font-body); overflow:hidden; }
+
+  /* ---- header ---- */
+  header{
+    height:56px; display:flex; align-items:center; justify-content:space-between;
+    padding:0 18px; background:var(--panel); border-bottom:1px solid var(--border);
+    position:relative; z-index:1000;
+  }
+  .brand{ display:flex; align-items:center; gap:12px; }
+  .glyph{ width:30px; height:30px; flex:none; }
+  .brand h1{ font-family:var(--font-display); font-weight:600; font-size:18px; margin:0; letter-spacing:.2px; }
+  .brand small{ display:block; font-size:11px; color:var(--muted); font-weight:400; letter-spacing:.3px; }
+  .status{ display:flex; align-items:center; gap:18px; font-family:var(--font-mono); font-size:12px; color:var(--muted); }
+  .pill{ display:flex; align-items:center; gap:7px; background:var(--panel-hi); border-radius:13px; padding:5px 14px; }
+  .dot{ width:9px; height:9px; border-radius:50%; background:var(--good); box-shadow:0 0 6px var(--good); animation:pulse 2s infinite; }
+  .dot.stale{ background:var(--warn); box-shadow:0 0 6px var(--warn); animation:none; }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.45;} }
+
+  /* ---- layout ---- */
+  #app{ display:flex; height:calc(100% - 56px); }
+  #map{ flex:1; background:#0b0d10; }
+  #sidebar{
+    width:300px; flex:none; background:var(--panel); border-left:1px solid var(--border);
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  #sidebar h2{
+    font-family:var(--font-mono); font-size:11px; letter-spacing:1.5px; color:var(--accent);
+    text-transform:uppercase; margin:0; padding:14px 16px 10px; border-bottom:1px solid var(--grid);
+  }
+  #list{ flex:1; overflow-y:auto; }
+  .contact-row{
+    padding:10px 16px; border-bottom:1px solid var(--grid); cursor:pointer;
+    transition:background .12s ease;
+  }
+  .contact-row:hover, .contact-row.active{ background:var(--panel-hi); }
+  .contact-row .top{ display:flex; justify-content:space-between; align-items:center; }
+  .cid{ font-family:var(--font-mono); font-weight:600; font-size:13px; }
+  .src-dot{ width:8px; height:8px; border-radius:1px; margin-right:6px; display:inline-block; }
+  .range{ font-family:var(--font-mono); color:var(--accent); font-size:12px; }
+  .coords{ font-family:var(--font-mono); font-size:11px; color:var(--muted); margin-top:3px; }
+  .empty{ padding:24px 16px; color:var(--faint); font-size:13px; text-align:center; }
+
+  /* ---- leaflet pin (bracket-corner style, matches waterfall markers) ---- */
+  .sonar-pin{ width:26px; height:26px; position:relative; }
+  .sonar-pin svg{ width:100%; height:100%; overflow:visible; }
+  .sonar-pin .cid-label{
+    position:absolute; top:-16px; left:50%; transform:translateX(-50%);
+    font-family:var(--font-mono); font-size:10px; color:var(--detect);
+    text-shadow:0 1px 2px #000; white-space:nowrap;
+  }
+
+  /* ---- popup ---- */
+  .leaflet-popup-content-wrapper{ background:var(--panel); color:var(--text); border:1px solid var(--border); border-radius:8px; }
+  .leaflet-popup-tip{ background:var(--panel); border:1px solid var(--border); }
+  .leaflet-popup-content{ margin:0; width:260px !important; }
+  .popup-inner{ padding:0; }
+  .popup-inner img{ width:100%; display:block; border-bottom:1px solid var(--border); background:#000; }
+  .popup-body{ padding:10px 12px; }
+  .popup-body .pcid{ font-family:var(--font-display); font-size:15px; font-weight:600; margin-bottom:4px; }
+  .popup-body .prow{ display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:11.5px; color:var(--muted); padding:2px 0; }
+  .popup-body .prow span:last-child{ color:var(--text); }
+
+  /* ---- footer ---- */
+  footer{
+    position:absolute; bottom:0; left:0; right:300px; height:28px; background:var(--panel);
+    border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;
+    padding:0 16px; font-family:var(--font-mono); font-size:11px; color:var(--muted); z-index:1000;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <svg class="glyph" viewBox="0 0 30 30">
+      <circle cx="15" cy="15" r="2" fill="#5cbceb"/>
+      <path d="M15 15 L15 4 A11 11 0 0 1 23.8 9" fill="none" stroke="#5cbceb" stroke-width="1.4" opacity="0.9"/>
+      <path d="M15 15 L8 4.5 A11 11 0 0 0 6.2 9" fill="none" stroke="#5cbceb" stroke-width="1.4" opacity="0.6"/>
+      <circle cx="15" cy="15" r="11" fill="none" stroke="#3a4148" stroke-width="1"/>
+    </svg>
+    <div>
+      <h1>OmniScan 450 — Contact Map</h1>
+      <small>anomaly survey overlay</small>
+    </div>
+  </div>
+  <div class="status">
+    <div class="pill"><div class="dot" id="liveDot"></div><span id="liveLabel">LIVE</span></div>
+    <span id="countLabel">0 contacts</span>
+  </div>
+</header>
+
+<div id="app">
+  <div id="map"></div>
+  <div id="sidebar">
+    <h2 id="sidebarTitle">Contacts (0)</h2>
+    <div id="list"><div class="empty">no contacts yet</div></div>
+  </div>
+</div>
+<footer>
+  <span id="srcLabel">data: contacts.json</span>
+  <span id="updatedLabel">—</span>
+</footer>
+
+<script>
+const DATA_URL = "data/contacts.json";
+const POLL_MS = 3000;
+const COLORS = { hough: "#5adcd0", cfar: "#ffeb5a", default: "#ffeb5a" };
+
+const map = L.map('map', { zoomControl: true, attributionControl: false }).setView([0, 0], 3);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  subdomains: 'abcd', maxZoom: 19
+}).addTo(map);
+
+const markers = new Map();   // id -> L.Marker
+let firstLoad = true;
+
+function pinIcon(contact){
+  const col = COLORS[contact.source] || COLORS.default;
+  const html = `
+    <div class="sonar-pin">
+      <span class="cid-label">#${contact.id}</span>
+      <svg viewBox="0 0 26 26">
+        <g stroke="${col}" stroke-width="2" fill="none" stroke-linecap="square">
+          <path d="M2 8 V2 H8"/><path d="M18 2 H24 V8"/>
+          <path d="M24 18 V24 H18"/><path d="M8 24 H2 V18"/>
+        </g>
+        <circle cx="13" cy="13" r="3" fill="${col}" opacity="0.9"/>
+      </svg>
+    </div>`;
+  return L.divIcon({ html, className: '', iconSize: [26, 26], iconAnchor: [13, 13] });
+}
+
+function popupHtml(c){
+  const ts = c.timestamp ? new Date(c.timestamp * 1000).toLocaleString() : "—";
+  return `
+    <div class="popup-inner">
+      <img src="${c.image}" alt="contact ${c.id} sonar image" loading="lazy"
+           onerror="this.style.display='none'"/>
+      <div class="popup-body">
+        <div class="pcid">Contact #${c.id}</div>
+        <div class="prow"><span>Range</span><span>${c.range_m != null ? c.range_m.toFixed(1) + ' m' : '—'}</span></div>
+        <div class="prow"><span>Source</span><span>${c.source || '—'}${c.hits ? ' · ' + c.hits + 'x' : ''}</span></div>
+        <div class="prow"><span>Position</span><span>${c.lat.toFixed(5)}, ${c.lon.toFixed(5)}</span></div>
+        <div class="prow"><span>Time</span><span>${ts}</span></div>
+      </div>
+    </div>`;
+}
+
+function renderList(contacts){
+  const list = document.getElementById('list');
+  document.getElementById('sidebarTitle').textContent = `Contacts (${contacts.length})`;
+  document.getElementById('countLabel').textContent = `${contacts.length} contact${contacts.length===1?'':'s'}`;
+  if(!contacts.length){ list.innerHTML = '<div class="empty">no contacts yet</div>'; return; }
+  const sorted = [...contacts].sort((a,b) => b.timestamp - a.timestamp);
+  list.innerHTML = sorted.map(c => {
+    const col = COLORS[c.source] || COLORS.default;
+    return `
+      <div class="contact-row" data-id="${c.id}">
+        <div class="top">
+          <span class="cid"><span class="src-dot" style="background:${col}"></span>#${c.id}</span>
+          <span class="range">${c.range_m != null ? c.range_m.toFixed(1) + ' m' : '—'}</span>
+        </div>
+        <div class="coords">${c.lat.toFixed(5)}, ${c.lon.toFixed(5)}</div>
+      </div>`;
+  }).join('');
+  list.querySelectorAll('.contact-row').forEach(row => {
+    row.addEventListener('click', () => focusContact(parseInt(row.dataset.id)));
+  });
+}
+
+function focusContact(id){
+  const m = markers.get(id);
+  if(!m) return;
+  map.flyTo(m.getLatLng(), Math.max(map.getZoom(), 15), { duration: 0.6 });
+  m.openPopup();
+  document.querySelectorAll('.contact-row').forEach(r => r.classList.toggle('active', parseInt(r.dataset.id) === id));
+}
+
+function syncMarkers(contacts){
+  const seen = new Set();
+  for(const c of contacts){
+    seen.add(c.id);
+    const latlng = [c.lat, c.lon];
+    if(markers.has(c.id)){
+      const m = markers.get(c.id);
+      m.setLatLng(latlng);
+      m.setPopupContent(popupHtml(c));
+    } else {
+      const m = L.marker(latlng, { icon: pinIcon(c) }).addTo(map);
+      m.bindPopup(popupHtml(c));
+      markers.set(c.id, m);
+    }
+  }
+  for(const [id, m] of markers){
+    if(!seen.has(id)){ map.removeLayer(m); markers.delete(id); }
+  }
+  if(firstLoad && contacts.length){
+    const bounds = L.latLngBounds(contacts.map(c => [c.lat, c.lon]));
+    map.fitBounds(bounds.pad(0.25));
+    firstLoad = false;
+  }
+}
+
+async function poll(){
+  const dot = document.getElementById('liveDot');
+  const label = document.getElementById('liveLabel');
+  try{
+    const res = await fetch(DATA_URL, { cache: "no-store" });
+    if(!res.ok) throw new Error(res.status);
+    const data = await res.json();
+    const contacts = data.contacts || [];
+    syncMarkers(contacts);
+    renderList(contacts);
+    dot.classList.remove('stale'); label.textContent = "LIVE";
+    const upd = data.updated ? new Date(data.updated * 1000).toLocaleTimeString() : "—";
+    document.getElementById('updatedLabel').textContent = `updated ${upd}`;
+  }catch(e){
+    dot.classList.add('stale'); label.textContent = "NO DATA";
+    document.getElementById('updatedLabel').textContent = "waiting for contacts.json…";
+  }
+}
+
+poll();
+setInterval(poll, POLL_MS);
+</script>
+</body>
+</html>
