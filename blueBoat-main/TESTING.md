@@ -29,25 +29,29 @@ mission state machine, with the sonar faked by `mock_sonarlink.py`.
 
 ### One-time setup
 
-**Windows (groundstation laptop):** Mission Planner has SITL built in —
-no install needed. **Linux / macOS / WSL:**
+QGroundControl has no built-in simulator, so SITL runs as a separate
+process and QGC connects to it automatically. On the Windows
+groundstation laptop use WSL (`wsl --install`, then Ubuntu); on
+macOS/Linux run it natively:
 
 ```
 git clone --recurse-submodules https://github.com/ArduPilot/ardupilot.git
-cd ardupilot && Tools/environment_install/install-prereqs-ubuntu.sh -y   # linux
+cd ardupilot
+Tools/environment_install/install-prereqs-ubuntu.sh -y   # ubuntu/WSL
 python3 -m pip install MAVProxy
 ```
 
 ### Start the simulated boat
 
-**Mission Planner:** SIMULATION tab → pick **Rover** → it starts SITL and
-connects. Extra MAVLink TCP ports are exposed on `127.0.0.1:5762` and `5763`.
-
-**sim_vehicle.py:**
-
 ```
 Tools/autotest/sim_vehicle.py -v Rover -f motorboat --map --console
 ```
+
+SITL broadcasts MAVLink on UDP 14550 — **QGroundControl picks it up
+automatically** when opened on the same machine (a "Vehicle 1"
+connection appears; under WSL2, if QGC runs on the Windows side, add a
+comm link to the WSL IP shown by `hostname -I`). Extra TCP ports for
+the pipeline are on `127.0.0.1:5762` and `5763`.
 
 ### Start the fake sonar
 
@@ -72,14 +76,14 @@ python main.py
 HOST=127.0.0.1 MAVCON_URL=tcp:127.0.0.1:5762 python main.py
 ```
 
-Then in Mission Planner (connected to the same SITL): write a short
-4-waypoint mission, arm, set mode AUTO. The sim boat drives it in
-real time.
+Then in QGroundControl: **Plan view** → add a short 4-waypoint survey →
+**Upload**, then back in **Fly view** arm and start the mission (the
+"Start Mission" slider). The sim boat drives it in real time.
 
 > If the mock sonar produced no contacts by mission end, `main.py` skips
 > the mission-2 upload (by design — it never uploads an empty mission).
 > To still exercise mission 2, upload and start a second mission manually
-> from Mission Planner once you see "Mission 1 complete!".
+> from QGroundControl once you see "Mission 1 complete!".
 
 ### Pass criteria — watch the console for ALL of these, in order
 
