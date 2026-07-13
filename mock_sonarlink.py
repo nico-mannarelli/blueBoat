@@ -163,17 +163,27 @@ async def handle_mavlink_ws(_request):
 
     seq = 0
     heading_deg = 45.0   # start heading NE, slowly rotate
+    # Drift like a boat on a survey line (~1.5 m/s along heading). A fixed
+    # position makes DetectionLog merge every sighting into ONE contact
+    # (merge_radius_m) — drifting spreads detections into distinct contacts.
+    lat_deg, lon_deg = _LAT_DEG, _LON_DEG
+    _SPEED_MPS, _DT = 1.5, 0.25
     try:
         while not ws.closed:
             ts = int(time.monotonic() * 1000) & 0xFFFF_FFFF
+
+            step_m = _SPEED_MPS * _DT
+            lat_deg += (step_m * math.cos(math.radians(heading_deg))) / 111_111.0
+            lon_deg += (step_m * math.sin(math.radians(heading_deg))) / (
+                111_111.0 * max(0.2, math.cos(math.radians(lat_deg))))
 
             gps_msg = {
                 "header": {"system_id": 1, "component_id": 1, "sequence": seq},
                 "message": {
                     "type":         "GLOBAL_POSITION_INT",
                     "time_boot_ms": ts,
-                    "lat":          int(_LAT_DEG * 1e7),
-                    "lon":          int(_LON_DEG * 1e7),
+                    "lat":          int(lat_deg * 1e7),
+                    "lon":          int(lon_deg * 1e7),
                     "alt":          500,          # 0.5 m (mm units)
                     "relative_alt": 500,
                     "vx":           10,
