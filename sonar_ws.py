@@ -235,16 +235,28 @@ class SonarLinkClient:
         while True and missionEnd != 0:
             try:
                 msg = connection.recv_match(
-                    type=['MISSION_CURRENT'],
+                    type=['MISSION_CURRENT', 'MISSION_ITEM_REACHED'],
                     blocking=True, timeout=5
                 )
 
                 if msg is None:      # recv timeout, not an error — keep polling
                     continue
 
-                if getattr(msg, "mission_state", 0) == 5:
-                    print("Mission 1 complete!")
-                    break
+                mtype = msg.get_type()
+                if mtype == "MISSION_CURRENT":
+                    if getattr(msg, "mission_state", 0) == 5:
+                        print("Mission 1 complete!")
+                        break
+
+                # Fallback: older firmware/SITL never streams MISSION_CURRENT
+                # (or lacks mission_state), but MISSION_ITEM_REACHED is an
+                # event message every autopilot sends. missionEnd is the last
+                # waypoint's seq number.
+                elif mtype == "MISSION_ITEM_REACHED":
+                    print(f"Reached waypoint: {msg.seq}")
+                    if msg.seq >= missionEnd:
+                        print("Mission 1 complete (last waypoint reached)!")
+                        break
 
                 count += 1
 

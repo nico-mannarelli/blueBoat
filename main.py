@@ -323,8 +323,14 @@ def main():
         # one-shot, so without this the second mission can't auto-stop the sonar.
         mav.reset_mission_tracking()
 
+        # MISSION2_END: last waypoint seq of mission 2, for firmware/SITL that
+        # never streams MISSION_CURRENT.mission_state. Unset -> mission_state
+        # is the completion signal (works on the real boat).
+        m2_end = os.environ.get("MISSION2_END")
+
         # call sonar again for second mission; returns when mission 2 completes
-        sonar.run_second_mission(auto_reconnect=True)
+        sonar.run_second_mission(auto_reconnect=True,
+                                 missionEnd=int(m2_end) if m2_end else None)
             
         cv2.destroyAllWindows()
 

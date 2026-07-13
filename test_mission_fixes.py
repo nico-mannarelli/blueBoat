@@ -192,6 +192,23 @@ class TestRunSecondMission(unittest.TestCase):
         self.assertEqual(started, [False])
 
 
+class TestRunFirstMission(unittest.TestCase):
+    def test_waypoint_fallback_without_mission_current(self):
+        # Old firmware/SITL never streams MISSION_CURRENT — mission 1 must
+        # still complete via MISSION_ITEM_REACHED at the last waypoint.
+        s = SonarLinkClient()
+        s.start_sonar_thread = lambda **k: None
+        fake_connection.script = [
+            None,                                        # pre-loop initial recv
+            Msg("MISSION_CURRENT", seq=1, mission_state=0),
+            Msg("MISSION_ITEM_REACHED", seq=2),
+            Msg("MISSION_ITEM_REACHED", seq=4),          # missionEnd -> break
+        ]
+        s.run_first_mission(4)
+        self.assertEqual(fake_connection.script, [])
+        self.assertTrue(s._stop)     # explicit stop fired after completion
+
+
 class TestMissionCompleteReset(unittest.TestCase):
     def test_completion_fires_once_per_mission_after_reset(self):
         fired = []
