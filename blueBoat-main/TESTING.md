@@ -94,6 +94,15 @@ Mission 1:
 4. coords file written with `(lat, lon, id)` triples
 5. uploader launches (`[main] launching uploader: python mavlink.py`)
 
+> **If your SITL build never streams MISSION_CURRENT** (diagnose: heartbeat
+> arrives but `recv_match(type=['MISSION_CURRENT'])` returns None), mission 1
+> still completes via the MISSION_ITEM_REACHED fallback — `main.py` passes
+> the last waypoint seq (4) to `run_first_mission`, so plan exactly 4
+> waypoints. For mission 2, set `MISSION2_END` to its last waypoint seq
+> before starting `main.py` (count the "SAFE WAYPOINTS" the uploader prints),
+> e.g. `$env:MISSION2_END = "6"`. On the real boat leave MISSION2_END unset —
+> mission_state is the signal there (verified by the Level 3 bench check).
+
 Mission 2 — these four are the regression checks for the field failure:
 
 6. `[ws] sonar connecting...` appears AGAIN (sonar restarted — fix #1)
