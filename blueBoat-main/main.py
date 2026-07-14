@@ -74,7 +74,7 @@ SURVEY_IDLE_TIMEOUT = float(os.environ.get("SURVEY_IDLE_TIMEOUT", "0"))
 #                   and starts the new mission (e.g. "python mavlink.py").
 POPULATE_FILE = os.environ.get("POPULATE_FILE")
 POPULATE_VAR  = os.environ.get("POPULATE_VAR", "WAYPOINTS")
-RUN_AFTER     = "python mavlink.py"    ############################## 
+RUN_AFTER     = os.environ.get("RUN_AFTER", "python mavlink.py")    ############################## 
 # If set, write the contact list as a Python array (coords = [(lat, lon, 0), ...])
 # to this path at the end of the run. e.g. COORDS_OUT=contacts_coords.py
 COORDS_OUT = os.environ.get("COORDS_OUT")
@@ -91,6 +91,10 @@ COORDS_MIN_HITS = int(os.environ.get("COORDS_MIN_HITS", "1"))
 SEND_TO_PLANNER = os.environ.get("SEND_TO_PLANNER", "1") not in ("0", "", "false", "False")
 PLANNER_LARGEST = int(os.environ.get("PLANNER_LARGEST", "10"))
 PLANNER_MIN_HITS = int(os.environ.get("PLANNER_MIN_HITS", "2"))
+
+# Last waypoint seq of mission 1 — must match the mission you actually fly
+# (completion fallback fires when MISSION_ITEM_REACHED hits this seq).
+MISSION1_END = int(os.environ.get("MISSION1_END", "4"))
 
 # Side-scan look direction per channel, as an offset from vehicle heading.
 # NOTE: port=0 / starboard=1 mapping mirrors the XTF channel order but should
@@ -259,7 +263,7 @@ def main():
 
     try:
         ###sonar.run_forever(auto_reconnect=True)
-        sonar.run_first_mission(4, auto_reconnect=True)  # set the last waypoint value, will no reach last waypoint
+        sonar.run_first_mission(MISSION1_END, auto_reconnect=True)
     finally:
         print(f"\n[main] mission complete: {len(log)} unique contact(s)")
         for r in log.to_records():
