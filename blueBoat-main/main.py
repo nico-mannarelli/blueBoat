@@ -282,6 +282,9 @@ def main():
         # The revisit contacts: largest N, dropping one-ping flickers.
         revisit = (log.to_coords(largest=PLANNER_LARGEST, min_hits=PLANNER_MIN_HITS)
                    if len(log) else [])
+        print(f"[main] revisit filter: min_hits={PLANNER_MIN_HITS} "
+              f"largest={PLANNER_LARGEST} -> kept {len(revisit)} of "
+              f"{len(log)} contact(s)")
 
         # End-of-survey: hand the largest contacts to the revisit planner so it
         # can plan a revisit run after this mission (see planner_handoff.py).

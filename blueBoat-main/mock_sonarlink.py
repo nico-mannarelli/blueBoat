@@ -34,8 +34,10 @@ MAV_PORT   = 6040
 SESSION_ID = "mock-0001"
 
 # Fake position: somewhere in the Atlantic for obvious test output
-_LAT_DEG =  41.123456
-_LON_DEG = -70.654321
+# Inside the OAG geofence hardcoded in detection_log.to_coords() — contacts
+# outside it are dropped, so the mock must "sail" within it.
+_LAT_DEG =  38.14300
+_LON_DEG = -76.52530
 
 NUM_SAMPLES = 200
 LENGTH_MM = 10_000
