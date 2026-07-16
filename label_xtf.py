@@ -50,6 +50,16 @@ Controls
     n / SPACE             next page          p     previous page
     u                     undo last label    s     save
     q / ESC               save and quit
+
+Classifier-crop mode (--crops DIR)
+----------------------------------
+    python label_xtf.py scan.xtf --crops sorted_crops
+After drawing a box (or clicking a point), press its class key to ALSO save a
+224x224 contrast-stretched crop into DIR/<class>/ — see CROP_CLASSES below
+(1=log 2=rock 3=man_made 4=background 5=debris 6=pipe_cable 7=tire 8=wreck
+9=fish). The .hits labels are still written as usual, so one labeling session
+feeds both the detector scoring AND the classifier library:
+    python sonar_classifier.py build --crops sorted_crops --lib library.npz
 """
 
 import argparse
@@ -155,8 +165,28 @@ def save_hits(path, labels):
 
 # ---- interactive labeler (GUI) ---------------------------------------------
 
+# Classifier classes for --crops mode: press the key after drawing a box to
+# save that crop into crops_dir/<class>/. Classes are just folder names —
+# add/rename freely; the classifier builds its library from whatever folders
+# exist. Thin classes are fine (a few examples still make a centroid, and
+# extra classes look good in demo/video output even before they're well fed).
+CROP_CLASSES = {
+    "1": "log",
+    "2": "rock",
+    "3": "man_made",
+    "4": "background",
+    "5": "debris",
+    "6": "pipe_cable",
+    "7": "tire",
+    "8": "wreck",
+    "9": "fish",
+}
+POINT_BOX_PX = 60   # box size used when a click (not a drag) gets a class key
+
+
 def run_labeler(gray, ping_numbers, nadir_col, out_path,
-                palette=PALETTE, disp_width=1280, disp_height=900):
+                palette=PALETTE, disp_width=1280, disp_height=900,
+                crops_dir=None):
     color = colorize(gray, palette=palette, scale=1)   # BGR, full-res
     H, W = color.shape[:2]
     scale = disp_width / W
@@ -164,7 +194,7 @@ def run_labeler(gray, ping_numbers, nadir_col, out_path,
     pages = max(1, math.ceil(H / rows_per_page))
     labels = load_hits(out_path)
     pn_row = ping_row_index(ping_numbers)
-    state = {"page": 0, "drag": None}
+    state = {"page": 0, "drag": None, "crops_saved": 0}
 
     def top_row():
         return state["page"] * rows_per_page
@@ -201,7 +231,35 @@ def run_labeler(gray, ping_numbers, nadir_col, out_path,
         cv2.rectangle(disp, (0, 0), (disp.shape[1], 20), (0, 0, 0), -1)
         cv2.putText(disp, bar, (6, 14), cv2.FONT_HERSHEY_SIMPLEX, 0.42,
                     (255, 255, 255), 1, cv2.LINE_AA)
+        if crops_dir:
+            menu = "  ".join(f"{k}={v}" for k, v in CROP_CLASSES.items())
+            bar2 = (f"crops {state['crops_saved']} -> {crops_dir}   "
+                    f"press key after box: {menu}")
+            cv2.rectangle(disp, (0, 20), (disp.shape[1], 40), (0, 0, 0), -1)
+            cv2.putText(disp, bar2, (6, 34), cv2.FONT_HERSHEY_SIMPLEX, 0.42,
+                        (120, 255, 120), 1, cv2.LINE_AA)
         return disp
+
+    def save_class_crop(cls):
+        """Crop the most recent label out of the full-res gray into
+        crops_dir/<cls>/ (224x224, padded, contrast-stretched)."""
+        if not labels:
+            return
+        from crop_saver import save_crop
+        L = labels[-1]
+        row = pn_row.get(L["y"])
+        if row is None:
+            return
+        w = L["w"] or POINT_BOX_PX
+        h = L["h"] or POINT_BOX_PX
+        box = (L["x"] - w // 2, row - h // 2, w, h)
+        meta = {"class": cls, "ping_number": L["y"], "channel": L["channel"],
+                "xtf": os.path.basename(out_path)}
+        p = save_crop(gray, box, os.path.join(crops_dir, cls),
+                      state["crops_saved"] + 1, meta)
+        if p:
+            state["crops_saved"] += 1
+            print(f"[label] crop #{state['crops_saved']} -> {p}")
 
     def on_mouse(event, x, y, flags, param):
         top = top_row()
@@ -247,6 +305,8 @@ def run_labeler(gray, ping_numbers, nadir_col, out_path,
             elif k == ord("s"):
                 save_hits(out_path, labels)
                 print(f"[label] saved {len(labels)} -> {out_path}")
+            elif crops_dir and chr(k) in CROP_CLASSES:
+                save_class_crop(CROP_CLASSES[chr(k)])
     finally:
         cv2.destroyAllWindows()
     return labels
@@ -266,6 +326,10 @@ def main():
     ap.add_argument("--height", type=int, default=900, help="Display height (px)")
     ap.add_argument("--stride", type=int, default=1,
                     help="Label every Nth ping — for very long scans (default 1)")
+    ap.add_argument("--crops", default=None, metavar="DIR",
+                    help="classifier-crop mode: after drawing a box, press a "
+                         "class key (1-9) to save a 224x224 crop into "
+                         "DIR/<class>/ for sonar_classifier.py build")
     args = ap.parse_args()
 
     out = args.out or (os.path.splitext(args.xtf)[0] + ".hits")
@@ -280,7 +344,8 @@ def main():
     print(f"[label] {len(pings)} pings  image {gray.shape[1]}x{gray.shape[0]}  "
           f"nadir_col={nadir_col}  -> {out}")
     run_labeler(gray, ping_numbers, nadir_col, out,
-                palette=PALETTE, disp_width=args.width, disp_height=args.height)
+                palette=PALETTE, disp_width=args.width, disp_height=args.height,
+                crops_dir=args.crops)
     print(f"[label] done: {out}")
 
 
