@@ -312,7 +312,11 @@ def main():
         if RUN_AFTER and revisit:
             import subprocess
             print(f"[main] launching uploader: {RUN_AFTER}")
-            subprocess.run(RUN_AFTER, shell=True)
+            # Popen, NOT run: the uploader pushes + starts mission 2 in
+            # parallel while we fall through to run_second_mission to monitor
+            # it. A blocking run() here freezes the whole handoff if the
+            # uploader ever hangs, and mission 2 never starts.
+            subprocess.Popen(RUN_AFTER, shell=True)
         elif RUN_AFTER and not revisit:
             print(f"[main] no contacts — skipping uploader ({RUN_AFTER})")
 

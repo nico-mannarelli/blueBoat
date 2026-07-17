@@ -294,6 +294,12 @@ class SonarLinkClient:
                 )
         mission_2_images = [(0,0)]
         count = 0
+        # Mission 1 finishing leaves mission_state latched at 5 (COMPLETE) on
+        # the vehicle. Without this gate the loop reads that stale 5 on its
+        # first poll and declares mission 2 done before it even starts. Only
+        # honor a completion once we've seen mission 2 actually running
+        # (state ACTIVE=3, or any waypoint reached).
+        mission_2_started = False
         while True:
             try:
                 msg = connection.recv_match(blocking=True, timeout=5)
@@ -303,10 +309,12 @@ class SonarLinkClient:
 
                 mtype = msg.get_type()
                 if mtype == "MISSION_CURRENT":
+                    state = getattr(msg, "mission_state", 0)
+                    if state == 3:               # ACTIVE — mission 2 is running
+                        mission_2_started = True
                     # mission_state == 5 (COMPLETE) is the real end-of-mission
-                    # signal. seq alone fires when the boat starts *towards*
-                    # the last waypoint, not when the mission finishes.
-                    if getattr(msg, "mission_state", 0) == 5:
+                    # signal, but only after mission 2 has actually started.
+                    if state == 5 and mission_2_started:
                         print("second mission complete!")
                         print(mission_2_images)
                         break
@@ -314,6 +322,7 @@ class SonarLinkClient:
                 # detects when a waypoint is reached;
                 # second mission images saved as 2-----.png
                 elif mtype == "MISSION_ITEM_REACHED":
+                    mission_2_started = True     # a waypoint reached = running
                     print(f"Reached waypoint: {msg.seq}")
                     print(f"Id of most recent image: {shared_states.current_id}")
                     mission_2_images.append((msg.seq, shared_states.current_id))

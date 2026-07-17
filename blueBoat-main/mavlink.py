@@ -378,9 +378,14 @@ def upload_mission(waypoints, crosspoints, returnpoints):
         mavutil.mavlink.MAV_MISSION_TYPE_MISSION
     )
     time.sleep(0.5)
+    # Drain the MISSION_ACK the clear produces. Without this, the final ack
+    # check below reads THIS stale ack instead of the upload's, so it printed
+    # "accepted" even when the upload itself was rejected.
+    while connection.recv_match(type='MISSION_ACK', blocking=False):
+        pass
 
     # home position (item 0) + waypoints
-    total = len(safe_waypoints) 
+    total = len(safe_waypoints)
 
     print("MISSION COUNT =", total)
     print("SAFE WAYPOINTS =", safe_waypoints)
@@ -421,46 +426,36 @@ def upload_mission(waypoints, crosspoints, returnpoints):
     # # item 0: home position (same as first waypoint)
     # send_item(waypoints[0][0], waypoints[0][1], waypoints[0][2])
 
-    # items 1+: waypoints
+    # items 1+: waypoints. Each item already carries a 5s hold (param1 in
+    # send_item), so there is NO NAV_DELAY here. Sending a COMMAND_LONG
+    # mid-handshake violates the mission-upload protocol and made ArduPilot
+    # SITL silently drop the whole mission (ack'd but stored the old one).
     count = 0
     for lat, lon in safe_waypoints:
         send_item(count, lat, lon, 0.0)
-        #wait for 5 secs at each waypoint
-        connection.mav.command_long_send(
-            connection.target_system,
-            connection.target_component,
-            mavutil.mavlink.MAV_CMD_NAV_DELAY,
-            0,
-            -1,
-            -1,
-            -1,
-            3, #secs
-            0,
-            0,
-            0
-        )
-        # connection.mav.command_long_send(
-        #     connection.target_system,
-        #     connection.target_component,
-        #     mavutil.mavlink.MAV_CMD_NAV_LOITER_TIME,
-        #     0,
-        #     1,
-        #     1,
-        #     0,
-        #     1,
-        #     lat,
-        #     lon,
-        #     0
-        # )
-
         count += 1
-        
 
-    ack = connection.recv_match(type='MISSION_ACK', blocking=True, timeout=5) 
-    if ack and ack.type == mavutil.mavlink.MAV_MISSION_ACCEPTED:
-        print("Mission upload accepted.")
+    ack = connection.recv_match(type='MISSION_ACK', blocking=True, timeout=5)
+    ack_name = (mavutil.mavlink.enums['MAV_MISSION_RESULT'][ack.type].name
+                if ack else "no ack")
+    print(f"Mission upload ack: {ack_name}")
+
+    # Ground truth: read the mission back and confirm the vehicle actually
+    # stored what we sent. The ack alone has lied before, so success depends
+    # on the read-back count, not on the ack.
+    connection.mav.mission_request_list_send(
+        connection.target_system,
+        connection.target_component,
+        mavutil.mavlink.MAV_MISSION_TYPE_MISSION
+    )
+    stored = connection.recv_match(type='MISSION_COUNT', blocking=True, timeout=5)
+    stored_count = stored.count if stored else None
+    if stored_count == total:
+        print(f"Mission upload verified: {stored_count} items on vehicle.")
         return True
-    print(f"Mission upload failed: {ack}") # make sure qgroundcontrol connected and in fly or auto not plan
+    print(f"Mission upload FAILED: sent {total}, vehicle reports "
+          f"{stored_count} (ack={ack_name}). "
+          "Make sure QGC isn't re-pushing its own plan.")
     return False
 
 
@@ -526,7 +521,11 @@ while True:
         set_new_mission()
 
         print("Starting new mission")
-         
+
+        # Manual -> Auto bounce is what actually starts an already-loaded
+        # mission on ArduRover (custom mode 0 = MANUAL, 10 = AUTO). BOTH
+        # halves must fire; the AUTO half used to be commented out, so it
+        # printed "auto" but the boat never left MANUAL and never started.
         connection.mav.command_long_send(
             connection.target_system,
             connection.target_component,
@@ -536,18 +535,19 @@ while True:
             0,0,0,0,0,0
         )
         print("manual")
+        await_ack(mavutil.mavlink.MAV_CMD_DO_SET_MODE)
         time.sleep(2)
-        # connection.mav.command_long_send(
-        #     connection.target_system,
-        #     connection.target_component,
-        #     mavutil.mavlink.MAV_CMD_DO_SET_MODE,
-        #     0,
-        #     mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
-        #     10,0,0,0,0,0
-        # )
+        connection.mav.command_long_send(
+            connection.target_system,
+            connection.target_component,
+            mavutil.mavlink.MAV_CMD_DO_SET_MODE,
+            0,
+            mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
+            10,0,0,0,0,0
+        )
         print("auto")
+        await_ack(mavutil.mavlink.MAV_CMD_DO_SET_MODE)
         time.sleep(2)
-        ###### have to switch to manual then back to auto to start
         ######click download file to see waypoints on map
 
         break
