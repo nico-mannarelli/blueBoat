@@ -90,11 +90,11 @@ COORDS_MIN_HITS = int(os.environ.get("COORDS_MIN_HITS", "1"))
 # seen on >= PLANNER_MIN_HITS pings (default 2, to drop one-ping flickers).
 SEND_TO_PLANNER = os.environ.get("SEND_TO_PLANNER", "1") not in ("0", "", "false", "False")
 PLANNER_LARGEST = int(os.environ.get("PLANNER_LARGEST", "10"))
-PLANNER_MIN_HITS = int(os.environ.get("PLANNER_MIN_HITS", "2"))
+PLANNER_MIN_HITS = int(os.environ.get("PLANNER_MIN_HITS", "1"))
 
 # Last waypoint seq of mission 1 — must match the mission you actually fly
 # (completion fallback fires when MISSION_ITEM_REACHED hits this seq).
-MISSION1_END = int(os.environ.get("MISSION1_END", "4"))
+MISSION1_END = int(os.environ.get("MISSION1_END", "13"))
 
 # Side-scan look direction per channel, as an offset from vehicle heading.
 # NOTE: port=0 / starboard=1 mapping mirrors the XTF channel order but should
