@@ -1,37 +1,37 @@
 """
-contact_export.py
-Bridges the live detection pipeline to the web map dashboard.
+contact_export.py — per-contact export: local web-map files + edge upload.
 
-Call `export_contact(...)` once per new contact (e.g. right after DetectionLog
-appends one in your detect loop, or inside SonarDashboard.render once a new
-cid shows up). It does two things:
-
-  1. Saves a colorized snapshot of the waterfall around the contact as a PNG
-     under <out_dir>/images/
-  2. Appends/updates that contact's record in <out_dir>/contacts.json
-
-The web page (index.html) polls contacts.json and reads images/ over a plain
-static file server — no backend framework needed.
-
-Usage in your pipeline:
-
-    from contact_export import ContactExporter
-    exporter = ContactExporter("sonar_web_data")   # or wherever you serve from
-
-    # ... inside your detect loop, whenever DetectionLog gets a new contact:
-    exporter.export(contact, gray, palette="blue")
+DATA IN:  one contact + the waterfall frame per new detection
+          (sonar_dashboard.render calls export() once per new cid)
+DATA OUT: local disk — snapshot PNG under <out_dir>/images/ and a record
+          in <out_dir>/contacts.json (the local web map polls these)
+          network (mission 2 only) — 224x224 classifier crop + colorized
+          snapshot + bbox + lat/lon POSTed to the edge server
+          (CONTACT_URL), which classifies the crop, draws box + label on
+          the snapshot, and forwards it to the map server
 """
 
 import json
 import os
+import queue
 import threading
 import time
 
 import cv2
+import requests
 
 from sonar_display import colorize
+from crop_saver import make_crop
 
 import shared_states
+
+# ---- real-time contact upload (mission 2) -----------------------------------
+# Uploads run on a background thread so the sonar pipeline NEVER waits on
+# the network; a dead edge server costs markers, not the mission (api.py
+# batch upload afterwards is the manual backup).
+CONTACT_URL        = "http://127.0.0.1:8000/contact"   # XR4000 in the field
+CONTACT_TIMEOUT_S  = 15.0     # classify + forward, incl. model warmup
+CLASSIFY_MISSION_2_ONLY = True   # False = also send mission-1 survey contacts
 
 
 class ContactExporter:
@@ -41,6 +41,9 @@ class ContactExporter:
         self.json_path = os.path.join(out_dir, "contacts.json")
         os.makedirs(self.img_dir, exist_ok=True)
         self._lock = threading.Lock()
+        self._clf_q = queue.Queue()
+        self._clf_thread = None
+        self._clf_failures = 0
         if not os.path.exists(self.json_path):
             self._write({"updated": time.time(), "contacts": []})
 
@@ -59,13 +62,9 @@ class ContactExporter:
 
     def export(self, contact, gray, palette="blue", crop_margin=40,
                contrast=1.12, gamma=0.85, brightness=0.0):
-        """
-        contact: dict with at least id, lat, lon, range_m, source (matches
-                 DetectionLog.contacts records already used by the dashboard).
-                 May also include x, y, w, h (waterfall pixel box) for a
-                 cropped snapshot; falls back to the full frame if absent.
-        gray:    the raw waterfall ndarray at the moment of detection.
-        """
+        """IN: one contact dict + the waterfall frame it was detected in.
+        OUT: snapshot PNG + contacts.json record on local disk; in mission 2
+        also queues crop + snapshot + bbox for upload to the edge server."""
         cid = contact["id"]
         if shared_states.mission_1_png:
             img_name = f"{cid:06d}.png"
@@ -76,6 +75,7 @@ class ContactExporter:
         disp = colorize(gray, palette=palette, contrast=contrast,
                          gamma=gamma, brightness=brightness)
 
+        sx0 = sy0 = 0    # snapshot crop origin, for bbox-in-snapshot coords
         if all(k in contact for k in ("x", "y", "w", "h")):
             h_img, w_img = disp.shape[:2]
             x0 = max(0, int(contact["x"] - crop_margin))
@@ -84,6 +84,7 @@ class ContactExporter:
             y1 = min(h_img, int(contact["y"] + contact["h"] + crop_margin))
             if x1 > x0 and y1 > y0:
                 disp = disp[y0:y1, x0:x1]
+                sx0, sy0 = x0, y0
 
         cv2.imwrite(img_path, disp)
 
@@ -105,4 +106,60 @@ class ContactExporter:
             data["updated"] = time.time()
             self._write(data)
 
+        # mission 2: hand the uploader the classifier-format crop (raw gray,
+        # same prep the library was built from) + the snapshot path + the
+        # detection box in snapshot coords (for box+label drawing server-side)
+        in_mission_2 = not shared_states.mission_1_png
+        if (in_mission_2 or not CLASSIFY_MISSION_2_ONLY) \
+                and all(k in contact for k in ("x", "y", "w", "h")):
+            crop = make_crop(gray, (contact["x"], contact["y"],
+                                    contact["w"], contact["h"]))
+            if crop is not None:
+                ok, buf = cv2.imencode(".png", crop)
+                if ok:
+                    bbox = (int(contact["x"]) - sx0, int(contact["y"]) - sy0,
+                            int(contact["w"]), int(contact["h"]))
+                    self._enqueue(buf.tobytes(), cid, contact["lat"],
+                                  contact["lon"], img_path,
+                                  "2" if in_mission_2 else "1", bbox)
+
         return record
+
+    # ---- background classify + marker uploader ------------------------------
+
+    def _enqueue(self, crop_png, cid, lat, lon, img_path, mission, bbox):
+        """Queue one contact for upload; starts the worker thread on first use."""
+        if self._clf_thread is None:
+            self._clf_thread = threading.Thread(
+                target=self._worker, daemon=True, name="classify-upload")
+            self._clf_thread.start()
+        self._clf_q.put((crop_png, cid, lat, lon, img_path, mission, bbox))
+
+    def _worker(self):
+        """Forever: pop a contact off the queue, POST crop + snapshot + bbox
+        + position to the edge server (CONTACT_URL), print the label back."""
+        while True:
+            crop_png, cid, lat, lon, img_path, mission, bbox = self._clf_q.get()
+            bx, by, bw, bh = bbox
+            try:
+                with open(img_path, "rb") as f:
+                    r = requests.post(
+                        CONTACT_URL,
+                        data={"lat": lat, "lon": lon, "mission": mission,
+                              "cid": cid, "bx": bx, "by": by,
+                              "bw": bw, "bh": bh},
+                        files=[("crop", (f"crop_{cid}.png", crop_png,
+                                         "image/png")),
+                               ("snapshot", (os.path.basename(img_path), f,
+                                             "image/png"))],
+                        timeout=CONTACT_TIMEOUT_S)
+                res = r.json()
+                self._clf_failures = 0
+                print(f"[export] contact #{cid} -> {res.get('label')} "
+                      f"({res.get('confidence')})  "
+                      f"marker_sent={res.get('marker_sent')}")
+            except Exception:
+                self._clf_failures += 1
+                if self._clf_failures == 3:
+                    print("[export] edge server unreachable — real-time "
+                          "contact uploads off (use api.py after the mission)")

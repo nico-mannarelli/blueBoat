@@ -1,22 +1,18 @@
 """
-crop_saver.py
-Save classifier-ready crops of sonar contacts, plus a JSON sidecar per crop.
+crop_saver.py — classifier-ready 224x224 crops of sonar contacts.
 
-Each crop is a 224x224 grayscale PNG cut around a detection's bounding box
-with generous padding (the acoustic shadow behind an object is often more
-diagnostic than the object highlight itself, so we keep it in frame).
+DATA IN:  a waterfall frame + detection box (live), or an .xtf recording
+          replayed through the real detector (offline harvest)
+DATA OUT: 224x224 grayscale crop — ndarray from make_crop() (feeds the
+          live mission-2 upload), or PNG + JSON sidecar on disk from
+          save_crop() / harvest
 
-Two ways to use it:
+Crops keep generous padding around the box: the acoustic shadow behind an
+object is often more diagnostic than the highlight itself.
 
-1. Offline harvest from a SonarView .xtf recording (no boat needed):
-       python crop_saver.py scan.xtf --out crops
-   Every detection the real pipeline finds in the replay becomes one PNG +
-   one .json sidecar in --out. Hand-sort the PNGs into class folders
-   (log/ rock/ man_made/ background/), then build the classifier library:
-       python sonar_classifier.py build --crops <sorted-dir> --lib library.npz
-
-2. From a live detection callback (RESCAN phase): call save_crop() with the
-   waterfall frame and the detection box.
+Offline harvest, then hand-sort into class folders and build the library:
+    python crop_saver.py scan.xtf --out crops
+    python build_library.py --crops <sorted-dir> --lib library.npz
 """
 
 import argparse
@@ -33,6 +29,7 @@ STRETCH_PCT = (2, 98)  # percentile contrast stretch so crops are actually
 
 
 def _stretch(crop):
+    """Percentile contrast stretch to the full 0-255 range."""
     lo, hi = np.percentile(crop, STRETCH_PCT)
     if hi <= lo:
         return crop
@@ -40,31 +37,43 @@ def _stretch(crop):
     return out.clip(0, 255).astype(np.uint8)
 
 
-def save_crop(gray, box, out_dir, cid, meta=None,
-              pad=CROP_PAD, size=CROP_SIZE):
-    """Cut a padded square crop around `box` and write PNG + JSON sidecar.
-
-    gray : 2-D uint8 waterfall image the detection came from.
-    box  : (x, y, w, h) in waterfall pixel coords.
-    cid  : contact id (from DetectionLog) — used in the filename so crops
-           trace back to contacts.
-    meta : dict merged into the sidecar (lat/lon, source, score, ping...).
-
-    Returns the written PNG path.
-    """
+def _window(gray, box, pad):
+    """The padded square window around a detection box, clamped to the image.
+    Returns (x0, y0, x1, y1) or None if degenerate."""
     x, y, w, h = (int(v) for v in box)
     H, W = gray.shape[:2]
-
-    # square window: pad * the larger box side, centred on the detection
     half = int(max(w, h) * pad / 2) or 1
     cx, cy = x + w // 2, y + h // 2
     x0, x1 = max(0, cx - half), min(W, cx + half)
     y0, y1 = max(0, cy - half), min(H, cy + half)
     if x1 <= x0 or y1 <= y0:
         return None
+    return x0, y0, x1, y1
 
+
+def make_crop(gray, box, pad=CROP_PAD, size=CROP_SIZE):
+    """Padded, contrast-stretched 224x224 crop around `box` as an ndarray
+    (None if degenerate). THE crop format — library building and live
+    uploads both go through here, so fingerprints always match."""
+    win = _window(gray, box, pad)
+    if win is None:
+        return None
+    x0, y0, x1, y1 = win
     crop = _stretch(gray[y0:y1, x0:x1])
-    crop = cv2.resize(crop, (size, size), interpolation=cv2.INTER_AREA)
+    return cv2.resize(crop, (size, size), interpolation=cv2.INTER_AREA)
+
+
+def save_crop(gray, box, out_dir, cid, meta=None,
+              pad=CROP_PAD, size=CROP_SIZE):
+    """make_crop() + write PNG and JSON sidecar (bbox, lat/lon, score, ...)
+    to out_dir, named by contact id. Returns the PNG path."""
+    win = _window(gray, box, pad)
+    if win is None:
+        return None
+    x0, y0, x1, y1 = win
+    crop = cv2.resize(_stretch(gray[y0:y1, x0:x1]), (size, size),
+                      interpolation=cv2.INTER_AREA)
+    x, y, w, h = (int(v) for v in box)
 
     os.makedirs(out_dir, exist_ok=True)
     ping = (meta or {}).get("ping_number", 0)
@@ -83,9 +92,9 @@ def save_crop(gray, box, out_dir, cid, meta=None,
 # ---- offline harvest from an .xtf recording --------------------------------
 
 def harvest(xtf_path, out_dir, channel="both", detector="cfar"):
-    """Replay an .xtf through the real detector and save a crop per
-    detection. Reuses replay_xtf's machinery so results match production."""
-    # imported here so `import crop_saver` stays light for live use
+    """Replay an .xtf through the real detector, save one crop + sidecar
+    per detection into out_dir. Matches production detection exactly."""
+    # lazy imports so `import crop_saver` stays light for live use
     from replay_xtf import iter_pings, georeference
     from mavlink_client import VehicleState
     from detection_log import DetectionLog
@@ -140,7 +149,9 @@ def harvest(xtf_path, out_dir, channel="both", detector="cfar"):
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__.split("\n")[2])
+    """CLI: harvest classifier crops from an .xtf recording."""
+    ap = argparse.ArgumentParser(
+        description="harvest classifier-ready crops from an .xtf recording")
     ap.add_argument("xtf", help=".xtf recording to harvest crops from")
     ap.add_argument("--out", default="crops", help="output folder")
     ap.add_argument("--channel", default="both", help="both | 0 | 1")
