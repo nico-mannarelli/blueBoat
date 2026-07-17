@@ -184,12 +184,31 @@ class TestRunSecondMission(unittest.TestCase):
         started = []
         self.sonar.start_sonar_thread = lambda **k: started.append(
             self.sonar._stop)
-        fake_connection.script = [Msg("MISSION_CURRENT", seq=0,
-                                      mission_state=5)]
+        fake_connection.script = [
+            Msg("MISSION_CURRENT", seq=0, mission_state=3),  # ACTIVE (started)
+            Msg("MISSION_CURRENT", seq=0, mission_state=5),  # then COMPLETE
+        ]
         self.sonar.run_second_mission()
         # start_sonar_thread must be called with _stop already cleared,
         # otherwise its thread loop exits before ever connecting
         self.assertEqual(started, [False])
+
+    def test_ignores_stale_mission1_completion(self):
+        # Mission 1 leaves mission_state latched at 5 (COMPLETE). run_second_
+        # mission must NOT treat that as mission 2 finishing before mission 2
+        # has actually started — otherwise the sonar dies instantly.
+        shared_states.current_id = 4
+        fake_connection.script = [
+            Msg("MISSION_CURRENT", seq=13, mission_state=5),  # stale from m1
+            Msg("MISSION_CURRENT", seq=13, mission_state=5),  # still stale
+            Msg("MISSION_CURRENT", seq=1, mission_state=3),   # m2 ACTIVE
+            Msg("MISSION_ITEM_REACHED", seq=1),
+            Msg("MISSION_CURRENT", seq=2, mission_state=5),   # m2 COMPLETE
+        ]
+        images = self.sonar.run_second_mission()
+        # consumed the whole script -> it did NOT break on the stale 5s
+        self.assertEqual(fake_connection.script, [])
+        self.assertIn(1, [s for s, _ in images])
 
 
 class TestRunFirstMission(unittest.TestCase):
