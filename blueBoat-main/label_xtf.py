@@ -59,7 +59,7 @@ After drawing a box (or clicking a point), press its class key to ALSO save a
 (1=log 2=rock 3=man_made 4=background 5=debris 6=pipe_cable 7=tire 8=wreck
 9=fish). The .hits labels are still written as usual, so one labeling session
 feeds both the detector scoring AND the classifier library:
-    python sonar_classifier.py build --crops sorted_crops --lib library.npz
+    python build_library.py --crops sorted_crops --lib library.npz
 """
 
 import argparse
@@ -329,7 +329,7 @@ def main():
     ap.add_argument("--crops", default=None, metavar="DIR",
                     help="classifier-crop mode: after drawing a box, press a "
                          "class key (1-9) to save a 224x224 crop into "
-                         "DIR/<class>/ for sonar_classifier.py build")
+                         "DIR/<class>/ for build_library.py")
     args = ap.parse_args()
 
     out = args.out or (os.path.splitext(args.xtf)[0] + ".hits")

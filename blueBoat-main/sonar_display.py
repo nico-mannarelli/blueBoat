@@ -76,6 +76,32 @@ def _apply_tone(gray, brightness=0.0, contrast=1.0, gamma=0.65):
     return (np.clip(x, 0.0, 1.0) * 255).astype(np.uint8)
 
 
+def enhance_waterfall(gray):
+    """SonarView-style display enhancement (prototyped on the 2026-06-16 scan;
+    raw-vs-enhanced comparisons in enhance_preview/). Order matters:
+
+    1. flat-field   — normalize each range column by its typical intensity,
+                      removing near-nadir-bright / far-range-dark banding
+                      (same idea the CFAR detector uses internally)
+    2. 3-ping along-track average — SonarView's smoothness is largely ping
+                      averaging; vertical-only so range resolution is untouched
+    3. bilateral    — edge-preserving speckle removal
+    4. mild CLAHE   — local contrast, blended 60/40 with input so it never
+                      looks over-processed
+
+    Display path ONLY — classifier crops keep raw pixel statistics (the
+    93% real-data baseline was measured on unenhanced crops).
+    """
+    f = gray.astype(np.float32)
+    med = np.median(f, axis=0)
+    med = cv2.GaussianBlur(med[None, :], (31, 1), 0)[0]
+    x = (f * (np.median(med) / np.maximum(med, 1.0))).clip(0, 255).astype(np.uint8)
+    x = cv2.blur(x, (1, 3))
+    x = cv2.bilateralFilter(x, d=5, sigmaColor=35, sigmaSpace=5)
+    e = cv2.createCLAHE(clipLimit=1.6, tileGridSize=(16, 16)).apply(x)
+    return cv2.addWeighted(e, 0.6, x, 0.4, 0)
+
+
 def colorize(gray, palette="amber", gamma=0.85, scale=1,
              brightness=0.0, contrast=1.12):
     """Map a grayscale waterfall (strong=bright) to a BGR sonar display image.

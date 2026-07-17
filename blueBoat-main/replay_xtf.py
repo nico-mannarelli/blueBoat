@@ -37,6 +37,7 @@ from pyxtf import XTFHeaderType, XTFSampleFormat
 from mavlink_client import VehicleState
 from sonar_detect import WaterfallDetector
 from sonar_dashboard import SonarDashboard
+from sonar_display import enhance_waterfall
 from detection_log import DetectionLog
 
 MIN_PWR_DB = -90.0
@@ -102,7 +103,14 @@ def georeference(detection, ping, vehicle):
 # sidebar list and the end-of-mission hand-off. Detection is
 # unchanged — these only consume what the pipeline already produces.
 
+# SonarView-style display enhancement — on by default, --raw disables it.
+# Display only: detection always runs on the untouched data.
+_ENHANCE = True
+
+
 def _show(dashboard, log, objects, ping, image, vehicle):
+    if _ENHANCE and image is not None:
+        image = enhance_waterfall(image)
     frame = dashboard.render(image, objects, ping, vehicle, log)
     cv2.imshow(dashboard.window, frame)
     if cv2.waitKey(1) & 0xFF in (ord("q"), 27):
@@ -264,6 +272,8 @@ def probe(path):
 def main():
     ap = argparse.ArgumentParser(description="Replay a SonarView XTF file through the detector.")
     ap.add_argument("xtf", help="Path to .xtf file")
+    ap.add_argument("--raw", action="store_true",
+                    help="disable the SonarView-style display enhancement")
     ap.add_argument("--speed", type=float, default=1.0,
                     help="Playback speed multiplier (0 = no delay, default 1.0)")
     ap.add_argument("--channel", default="both", choices=["both", "0", "1"],
@@ -352,6 +362,9 @@ def main():
                          "--run-after 'python mavlink.py' to launch the mission "
                          "controller automatically after the scan.")
     args = ap.parse_args()
+
+    global _ENHANCE
+    _ENHANCE = not args.raw
 
     if args.probe:
         probe(args.xtf)
