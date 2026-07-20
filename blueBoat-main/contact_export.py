@@ -3,12 +3,11 @@ contact_export.py — per-contact export: local web-map files + edge upload.
 
 DATA IN:  one contact + the waterfall frame per new detection
           (sonar_dashboard.render calls export() once per new cid)
-DATA OUT: local disk — snapshot PNG under <out_dir>/images/ and a record
-          in <out_dir>/contacts.json (the local web map polls these)
-          network (mission 2 only) — 224x224 classifier crop + colorized
-          snapshot + bbox + lat/lon POSTed to the edge server
-          (CONTACT_URL), which classifies the crop, draws box + label on
-          the snapshot, and forwards it to the map server
+DATA OUT: local disk — snapshot PNG under <out_dir>/images/
+          network (mission 2 only) — low_res_img (224x224 classifier crop) +
+          high_res_img (colorized snapshot) + bbox + lat/lon POSTed to the
+          CommandCenter map endpoint (CONTACT_URL), which classifies the
+          low-res crop and draws the label + box on the high-res image
 """
 
 import json
@@ -29,8 +28,8 @@ import shared_states
 # Uploads run on a background thread so the sonar pipeline NEVER waits on
 # the network; a dead edge server costs markers, not the mission (api.py
 # batch upload afterwards is the manual backup).
-CONTACT_URL        = "http://127.0.0.1:8000/contact"   # XR4000 in the field
-CONTACT_TIMEOUT_S  = 15.0     # classify + forward, incl. model warmup
+CONTACT_URL        = "http://10.107.30.63:30932/marker/boat"  # CommandCenter map endpoint
+CONTACT_TIMEOUT_S  = 15.0     # classify + forward on the server side
 CLASSIFY_MISSION_2_ONLY = True   # False = also send mission-1 survey contacts
 
 
@@ -136,8 +135,13 @@ class ContactExporter:
         self._clf_q.put((crop_png, cid, lat, lon, img_path, mission, bbox))
 
     def _worker(self):
-        """Forever: pop a contact off the queue, POST crop + snapshot + bbox
-        + position to the edge server (CONTACT_URL), print the label back."""
+        """Forever: pop a contact off the queue, POST it to the CommandCenter
+        map endpoint (CONTACT_URL). The server classifies low_res_img and
+        draws the label + bbox on high_res_img for the map.
+            low_res_img  = 224x224 gray classifier crop
+            high_res_img = colorized display snapshot
+            bbox         = "[x,y,w,h]" in high_res_img pixel coords
+        """
         while True:
             crop_png, cid, lat, lon, img_path, mission, bbox = self._clf_q.get()
             bx, by, bw, bh = bbox
@@ -145,21 +149,17 @@ class ContactExporter:
                 with open(img_path, "rb") as f:
                     r = requests.post(
                         CONTACT_URL,
-                        data={"lat": lat, "lon": lon, "mission": mission,
-                              "cid": cid, "bx": bx, "by": by,
-                              "bw": bw, "bh": bh},
-                        files=[("crop", (f"crop_{cid}.png", crop_png,
-                                         "image/png")),
-                               ("snapshot", (os.path.basename(img_path), f,
-                                             "image/png"))],
+                        data={"lat": lat, "lon": lon,
+                              "bbox": f"[{bx},{by},{bw},{bh}]"},
+                        files=[("low_res_img", (f"crop_{cid}.png", crop_png,
+                                                "image/png")),
+                               ("high_res_img", (os.path.basename(img_path), f,
+                                                 "image/png"))],
                         timeout=CONTACT_TIMEOUT_S)
-                res = r.json()
                 self._clf_failures = 0
-                print(f"[export] contact #{cid} -> {res.get('label')} "
-                      f"({res.get('confidence')})  "
-                      f"marker_sent={res.get('marker_sent')}")
+                print(f"[export] contact #{cid} sent -> HTTP {r.status_code}")
             except Exception:
                 self._clf_failures += 1
                 if self._clf_failures == 3:
-                    print("[export] edge server unreachable — real-time "
+                    print("[export] map endpoint unreachable — real-time "
                           "contact uploads off (use api.py after the mission)")
