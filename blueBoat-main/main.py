@@ -94,7 +94,7 @@ PLANNER_MIN_HITS = int(os.environ.get("PLANNER_MIN_HITS", "1"))
 
 # Last waypoint seq of mission 1 — must match the mission you actually fly
 # (completion fallback fires when MISSION_ITEM_REACHED hits this seq).
-MISSION1_END = int(os.environ.get("MISSION1_END", "13"))
+MISSION1_END = int(os.environ.get("MISSION1_END", "4"))
 
 # Side-scan look direction per channel, as an offset from vehicle heading.
 # NOTE: port=0 / starboard=1 mapping mirrors the XTF channel order but should
@@ -322,10 +322,10 @@ def main():
 
 
         # upload to website the selected coords pictures after mission 1
-        # COORDINATES = [(lat, lon, cid) for lat,lon,cid in coords]
-        # for lat,lon,cid in COORDINATES:
-        #     api_upload(lat, lon, cid)
-        #     print(cid)
+        COORDINATES = [(lat, lon, cid) for lat,lon,cid in coords]
+        for lat,lon,cid in COORDINATES:
+            api_upload(lat, lon, cid)
+            print(cid)
 
         
         time.sleep(10)
