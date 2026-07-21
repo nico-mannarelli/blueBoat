@@ -74,7 +74,7 @@ SURVEY_IDLE_TIMEOUT = float(os.environ.get("SURVEY_IDLE_TIMEOUT", "0"))
 #                   and starts the new mission (e.g. "python mavlink.py").
 POPULATE_FILE = os.environ.get("POPULATE_FILE")
 POPULATE_VAR  = os.environ.get("POPULATE_VAR", "WAYPOINTS")
-RUN_AFTER     = os.environ.get("RUN_AFTER", "python mavlink.py")    ############################## 
+RUN_AFTER     = os.environ.get("RUN_AFTER", "python mavlink_nopipeline.py")    ############################## 
 # If set, write the contact list as a Python array (coords = [(lat, lon, 0), ...])
 # to this path at the end of the run. e.g. COORDS_OUT=contacts_coords.py
 COORDS_OUT = os.environ.get("COORDS_OUT")

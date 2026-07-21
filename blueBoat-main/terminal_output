@@ -1,0 +1,807 @@
+PS C:\Users\kbr_e\Downloads\blueBoat-main> cd .\blueBoat-main\
+PS C:\Users\kbr_e\Downloads\blueBoat-main\blueBoat-main> .\venv\Scripts\  
+.\venv\Scripts\ : The term '.\venv\Scripts\' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the 
+name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ .\venv\Scripts\
++ ~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (.\venv\Scripts\:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+ 
+PS C:\Users\kbr_e\Downloads\blueBoat-main\blueBoat-main> .\venv\Scripts\activate
+(venv) PS C:\Users\kbr_e\Downloads\blueBoat-main\blueBoat-main> python main.py
+[main] sonar    →  192.168.2.2:7077
+[main] mavlink  →  192.168.2.2:6040
+[ws] sonar thread started
+[mavlink] connected  ws://192.168.2.2:6040/v1/ws/mavlink
+[ws] sonar connecting...
+[ws] connected  session_id=1
+[ws] start_ping  length=30000mm num_results=600  gain=-1
+error unpacking payload: unpack requires a buffer of 0 bytes
+msg_data: bytearray(b'BR\xc0\t\n\x00\x00\x00{\n  "session_id": 1,\n  "session_uptime": 78.709,\n  "session_devices": [\n    {\n      "url": "tcp://192.168.2.92:51200",\n      "options": {\n        "transducer_deg": -90,\n        "imu_deg": 0,\n        "doppler_enable": true\n      },\n      "device_id": 1,\n      "product_id": "os450",\n      "nickname": "Port-Omniscan",\n      "status": "CONNECTED"\n    },\n    {\n      "url": "tcp://192.168.2.93:51200",\n      "options": {\n        "transducer_deg": 90,\n        "imu_deg": 0,\n        "doppler_enable": true\n      },\n      "device_id": 2,\n      "product_id": "os450",\n      "nickname": "Starboard-Omniscan",\n      "status": "CONNECTED"\n    }\n  ],\n  "session_platform": {\n    "url": "ws://blueos.local:6040/v1/ws/mavlink?filter=ATTITUDE|GLOBAL_POSITION_INT|LOCAL_POSITION_NED|HOME_POSITION|HEARTBEAT|SCALED_PRESSURE2|DISTANCE_SENSOR|GPS_GLOBAL_ORIGIN|PARAM_VALUE|VFR_HUD|STATUSTEXT|AUTOPILOT_VERSION",\n    "protocol": "mavlink2rest",\n    "options": {\n      "system_id": 1,\n      "periodic_messages": [\n        {\n          "message_id": 0,\n          "frequency_hz": 1\n        },\n        {\n          "message_id": 30,\n          "frequency_hz": 30\n        },\n        {\n          "message_id": 33,\n          "frequency_hz": 30\n        },\n        {\n          "message_id": 32,\n          "frequency_hz": 30\n        },\n        {\n          "message_id": 137,\n          "frequency_hz": 3\n        },\n        {\n          "message_id": 74,\n          "frequency_hz": 3\n        },\n        {\n          "message_id": 49,\n          "frequency_hz": 1\n        },\n        {\n          "message_id": 148,\n          "frequency_hz": 0.016666666666666666\n        }\n      ]\n    },\n    "nickname": "Sim2Sea",\n    "model": "blue_boat",\n    "device_id": 3,\n    "status": "CONNECTED"\n  },\n  "session_clients": [\n    {\n      "protocol": "ws",\n      "address": "::ffff:192.168.2.1",\n      "port": 58677,\n      "write": true\n    },\n    {\n      "protocol": "ws",\n      "address": "::ffff:192.168.2.1",\n      "port": 59201,\n      "write": false\n    }\n  ],\n  "session_plan_name": "Sim2Sea+DualOmniscan",\n  "is_recording": true,\n  "sonarlink_version": "1.14.33-beta",\n  "os_hostname": "blueos",\n  "os_uptime": 1287.57,\n  "os_version": "#1415 SMP Fri Apr 30 15:50:57 BST 2021",\n  "os_platform": "linux",\n  "os_release": "5.10.33-v7l+",\n  "process_path": "/usr/bin/node",\n  "process_version": "v22.22.0",\n  "process_uptime": 1201.513176076,\n  "process_arch": "arm",\n  "timestamp": "2026-07-21T14:21:38.541Z",\n  "timestamp_timezone_offset": 0\n}\xcb\x87'), header: (66, 82, 2496, 10, 0, 0)
+format: <, buf: bytearray(b'{\n  "session_id": 1,\n  "session_uptime": 78.709,\n  "session_devices": [\n    {\n      "url": "tcp://192.168.2.92:51200",\n      "options": {\n        "transducer_deg": -90,\n        "imu_deg": 0,\n        "doppler_enable": true\n      },\n      "device_id": 1,\n      "product_id": "os450",\n      "nickname": "Port-Omniscan",\n      "status": "CONNECTED"\n    },\n    {\n      "url": "tcp://192.168.2.93:51200",\n      "options": {\n        "transducer_deg": 90,\n        "imu_deg": 0,\n        "doppler_enable": true\n      },\n      "device_id": 2,\n      "product_id": "os450",\n      "nickname": "Starboard-Omniscan",\n      "status": "CONNECTED"\n    }\n  ],\n  "session_platform": {\n    "url": "ws://blueos.local:6040/v1/ws/mavlink?filter=ATTITUDE|GLOBAL_POSITION_INT|LOCAL_POSITION_NED|HOME_POSITION|HEARTBEAT|SCALED_PRESSURE2|DISTANCE_SENSOR|GPS_GLOBAL_ORIGIN|PARAM_VALUE|VFR_HUD|STATUSTEXT|AUTOPILOT_VERSION",\n    "protocol": "mavlink2rest",\n    "options": {\n      "system_id": 1,\n      "periodic_messages": [\n        {\n          "message_id": 0,\n          "frequency_hz": 1\n        },\n        {\n          "message_id": 30,\n          "frequency_hz": 30\n        },\n        {\n          "message_id": 33,\n          "frequency_hz": 30\n        },\n        {\n          "message_id": 32,\n          "frequency_hz": 30\n        },\n        {\n          "message_id": 137,\n          "frequency_hz": 3\n        },\n        {\n          "message_id": 74,\n          "frequency_hz": 3\n        },\n        {\n          "message_id": 49,\n          "frequency_hz": 1\n        },\n        {\n          "message_id": 148,\n          "frequency_hz": 0.016666666666666666\n        }\n      ]\n    },\n    "nickname": "Sim2Sea",\n    "model": "blue_boat",\n    "device_id": 3,\n    "status": "CONNECTED"\n  },\n  "session_clients": [\n    {\n      "protocol": "ws",\n      "address": "::ffff:192.168.2.1",\n      "port": 58677,\n      "write": true\n    },\n    {\n      "protocol": "ws",\n      "address": "::ffff:192.168.2.1",\n      "port": 59201,\n      "write": false\n    }\n  ],\n  "session_plan_name": "Sim2Sea+DualOmniscan",\n  "is_recording": true,\n  "sonarlink_version": "1.14.33-beta",\n  "os_hostname": "blueos",\n  "os_uptime": 1287.57,\n  "os_version": "#1415 SMP Fri Apr 30 15:50:57 BST 2021",\n  "os_platform": "linux",\n  "os_release": "5.10.33-v7l+",\n  "process_path": "/usr/bin/node",\n  "process_version": "v22.22.0",\n  "process_uptime": 1201.513176076,\n  "process_arch": "arm",\n  "timestamp": "2026-07-21T14:21:38.541Z",\n  "timestamp_timezone_offset": 0\n}')
+
+[detect] ch1 ping #1339: clear
+[detect] ch0 ping #1339: 1 object(s)  gps=(38.279281, -76.622901)  hdg=349.8deg
+    range~11.4m  size=65x22px  src=blob  contact=#1  latlon=(38.279179, -76.622901)
+Reached waypoint: 1
+[detect] ch1 ping #1389: clear
+[detect] ch0 ping #1389: 1 object(s)  gps=(38.279304, -76.622897)  hdg=12.2deg
+    range~11.2m  size=83x31px  src=blob  contact=#1  latlon=(38.279203, -76.622897)
+[detect] ch1 ping #1439: clear
+[detect] ch0 ping #1439: 2 object(s)  gps=(38.279335, -76.622887)  hdg=13.3deg
+    range~11.1m  size=103x33px  src=blob  contact=#2  latlon=(38.279235, -76.622887)
+    range~10.5m  size=34x25px  src=blob  contact=#2  latlon=(38.279240, -76.622887)
+[detect] ch1 ping #1489: clear
+[detect] ch0 ping #1489: 2 object(s)  gps=(38.279362, -76.622879)  hdg=9.2deg
+    range~11.1m  size=105x33px  src=blob  contact=#2  latlon=(38.279262, -76.622879)
+    range~10.8m  size=46x13px  src=blob  contact=#2  latlon=(38.279264, -76.622879)
+[detect] ch1 ping #1539: 1 object(s)  gps=(38.279380, -76.622876)  hdg=9.8deg
+    range~0.8m  size=18x30px  src=blob  contact=#3  latlon=(38.279373, -76.622876)
+[detect] ch0 ping #1539: 2 object(s)  gps=(38.279383, -76.622875)  hdg=10.5deg
+    range~10.9m  size=174x55px  src=blob  contact=#4  latlon=(38.279285, -76.622875)
+    range~11.2m  size=76x28px  src=blob  contact=#4  latlon=(38.279282, -76.622875)
+[detect] ch1 ping #1589: 1 object(s)  gps=(38.279429, -76.622866)  hdg=13.4deg
+    range~0.8m  size=18x32px  src=blob  contact=#5  latlon=(38.279422, -76.622866)
+[detect] ch0 ping #1589: 3 object(s)  gps=(38.279437, -76.622864)  hdg=11.6deg
+    range~11.6m  size=175x65px  src=blob  contact=#6  latlon=(38.279333, -76.622864)
+    range~11.3m  size=58x24px  src=blob  contact=#6  latlon=(38.279336, -76.622864)
+    range~11.6m  size=57x19px  src=blob  contact=#6  latlon=(38.279333, -76.622864)
+[detect] ch1 ping #1639: 1 object(s)  gps=(38.279488, -76.622852)  hdg=12.5deg
+    range~0.8m  size=18x57px  src=blob  contact=#7  latlon=(38.279480, -76.622852)
+[detect] ch0 ping #1639: clear
+[detect] ch1 ping #1689: 1 object(s)  gps=(38.279548, -76.622839)  hdg=14.3deg
+    range~0.8m  size=20x58px  src=blob  contact=#8  latlon=(38.279541, -76.622839)
+[detect] ch0 ping #1689: 2 object(s)  gps=(38.279558, -76.622837)  hdg=14.5deg
+    range~12.4m  size=154x132px  src=blob  contact=#9  latlon=(38.279446, -76.622837)
+    range~11.9m  size=49x25px  src=blob  contact=#9  latlon=(38.279451, -76.622837)
+[detect] ch1 ping #1739: 1 object(s)  gps=(38.279590, -76.622830)  hdg=14.1deg
+    range~0.8m  size=20x58px  src=blob  contact=#10  latlon=(38.279583, -76.622830)
+[detect] ch0 ping #1739: 1 object(s)  gps=(38.279594, -76.622829)  hdg=16.2deg
+    range~11.9m  size=39x24px  src=blob  contact=#7  latlon=(38.279487, -76.622828)
+[detect] ch1 ping #1789: 1 object(s)  gps=(38.279630, -76.622820)  hdg=16.0deg
+    range~0.8m  size=24x60px  src=blob  contact=#11  latlon=(38.279623, -76.622820)
+[detect] ch0 ping #1789: 2 object(s)  gps=(38.279634, -76.622820)  hdg=18.8deg
+    range~11.9m  size=40x24px  src=blob  contact=#8  latlon=(38.279527, -76.622820)
+    range~0.8m  size=12x48px  src=blob  contact=#11  latlon=(38.279627, -76.622820)
+Reached waypoint: 2
+[detect] ch1 ping #1839: clear
+[detect] ch0 ping #1839: 2 object(s)  gps=(38.279639, -76.622818)  hdg=291.8deg
+    range~11.8m  size=52x32px  src=blob  contact=#8  latlon=(38.279533, -76.622818)
+    range~12.4m  size=39x33px  src=blob  contact=#8  latlon=(38.279528, -76.622818)
+[detect] ch1 ping #1889: clear
+[detect] ch0 ping #1889: 5 object(s)  gps=(38.279633, -76.622879)  hdg=276.4deg
+    range~11.8m  size=57x33px  src=blob  contact=#12  latlon=(38.279527, -76.622879)
+    range~12.4m  size=38x36px  src=blob  contact=#12  latlon=(38.279522, -76.622879)
+    range~10.8m  size=46x20px  src=blob  contact=#12  latlon=(38.279536, -76.622879)
+    range~9.8m  size=32x28px  src=blob  contact=#12  latlon=(38.279545, -76.622879)
+    range~10.4m  size=31x26px  src=blob  contact=#12  latlon=(38.279540, -76.622879)
+[detect] ch1 ping #1939: 1 object(s)  gps=(38.279634, -76.622967)  hdg=273.6deg
+    range~0.7m  size=32x33px  src=blob  contact=#13  latlon=(38.279627, -76.622967)
+[detect] ch0 ping #1939: 4 object(s)  gps=(38.279633, -76.622983)  hdg=274.3deg
+    range~11.8m  size=62x33px  src=blob  contact=#14  latlon=(38.279528, -76.622983)
+    range~12.4m  size=39x36px  src=blob  contact=#14  latlon=(38.279522, -76.622983)
+    range~10.3m  size=34x30px  src=blob  contact=#14  latlon=(38.279540, -76.622983)
+    range~10.8m  size=46x21px  src=blob  contact=#14  latlon=(38.279536, -76.622983)
+Reached waypoint: 3
+[detect] ch1 ping #1989: 2 object(s)  gps=(38.279634, -76.623023)  hdg=238.9deg
+    range~0.9m  size=19x46px  src=blob  contact=#15  latlon=(38.279625, -76.623023)
+    range~0.9m  size=19x32px  src=blob  contact=#15  latlon=(38.279625, -76.623023)
+[detect] ch0 ping #1989: 3 object(s)  gps=(38.279634, -76.623023)  hdg=210.8deg
+    range~11.8m  size=62x33px  src=blob  contact=#16  latlon=(38.279528, -76.623023)
+    range~12.4m  size=39x34px  src=blob  contact=#16  latlon=(38.279523, -76.623023)
+    range~0.9m  size=15x46px  src=blob  contact=#15  latlon=(38.279626, -76.623023)
+[detect] ch1 ping #2039: 2 object(s)  gps=(38.279604, -76.623020)  hdg=181.4deg
+    range~0.9m  size=19x41px  src=blob  contact=#17  latlon=(38.279595, -76.623020)
+    range~0.9m  size=25x31px  src=blob  contact=#17  latlon=(38.279595, -76.623020)
+[detect] ch0 ping #2039: 3 object(s)  gps=(38.279594, -76.623020)  hdg=182.4deg
+    range~12.2m  size=51x34px  src=blob  contact=#18  latlon=(38.279484, -76.623020)
+    range~11.9m  size=47x20px  src=blob  contact=#18  latlon=(38.279487, -76.623020)
+    range~0.9m  size=15x53px  src=blob  contact=#17  latlon=(38.279586, -76.623020)
+[detect] ch1 ping #2089: 1 object(s)  gps=(38.279524, -76.623024)  hdg=179.4deg
+    range~0.9m  size=30x28px  src=blob  contact=#16  latlon=(38.279515, -76.623024)
+[detect] ch0 ping #2089: 1 object(s)  gps=(38.279517, -76.623024)  hdg=179.2deg
+    range~0.9m  size=15x73px  src=blob  contact=#16  latlon=(38.279509, -76.623024)
+[detect] ch1 ping #2139: clear
+[detect] ch0 ping #2139: 1 object(s)  gps=(38.279461, -76.623026)  hdg=176.1deg
+    range~0.3m  size=60x21px  src=blob  contact=#19  latlon=(38.279459, -76.623026)
+[detect] ch1 ping #2189: clear
+[detect] ch0 ping #2189: 2 object(s)  gps=(38.279402, -76.623028)  hdg=174.0deg
+    range~0.3m  size=63x23px  src=blob  contact=#20  latlon=(38.279400, -76.623028)
+    range~0.9m  size=17x33px  src=blob  contact=#20  latlon=(38.279394, -76.623028)
+[detect] ch1 ping #2239: clear
+[detect] ch0 ping #2239: 1 object(s)  gps=(38.279345, -76.623029)  hdg=171.2deg
+    range~0.3m  size=61x26px  src=blob  contact=#21  latlon=(38.279342, -76.623029)
+[detect] ch1 ping #2289: clear
+[detect] ch0 ping #2289: clear
+Reached waypoint: 4
+[detect] ch1 ping #2339: clear
+[detect] ch0 ping #2339: clear
+[detect] ch1 ping #2389: clear
+[detect] ch0 ping #2389: clear
+Reached waypoint: 5
+Mission 1 complete!
+[ws] closed (code=None)
+[ws] sonar thread exiting (stop or no reconnect)
+
+[main] mission complete: 21 unique contact(s)
+    #01  (38.279190, -76.622899)  range~11.2m  blob  seen 2x
+    #02  (38.279249, -76.622884)  range~11.1m  blob  seen 4x
+    #03  (38.279372, -76.622876)  range~0.8m  blob  seen 1x
+    #04  (38.279282, -76.622875)  range~11.2m  blob  seen 2x
+    #05  (38.279420, -76.622866)  range~0.8m  blob  seen 1x
+    #06  (38.279330, -76.622865)  range~11.3m  blob  seen 3x
+    #07  (38.279481, -76.622841)  range~0.8m  blob  seen 2x
+    #08  (38.279531, -76.622824)  range~0.8m  blob  seen 4x
+    #09  (38.279443, -76.622838)  range~12.4m  blob  seen 2x
+    #10  (38.279581, -76.622830)  range~0.8m  blob  seen 1x
+    #11  (38.279624, -76.622820)  range~0.8m  blob  seen 2x
+    #12  (38.279534, -76.622874)  range~10.4m  blob  seen 5x
+    #13  (38.279627, -76.622963)  range~0.7m  blob  seen 1x
+    #14  (38.279532, -76.622974)  range~10.3m  blob  seen 4x
+    #15  (38.279625, -76.623023)  range~0.9m  blob  seen 3x
+    #16  (38.279519, -76.623023)  range~0.9m  blob  seen 4x
+    #17  (38.279596, -76.623021)  range~0.9m  blob  seen 3x
+    #18  (38.279492, -76.623020)  range~11.9m  blob  seen 2x
+    #19  (38.279462, -76.623025)  range~0.3m  blob  seen 1x
+    #20  (38.279400, -76.623028)  range~0.9m  blob  seen 2x
+    #21  (38.279345, -76.623029)  range~0.3m  blob  seen 1x
+[main] hand off log.to_records() / to_geojson() / to_csv() to your revisit planner
+[main] revisit filter: min_hits=1 largest=10 -> kept 0 of 21 contact(s)
+[main] no contacts — skipping uploader (python mavlink.py)
+[ws] sonar thread started
+[ws] sonar connecting...
+[ws] connected  session_id=1
+[ws] start_ping  length=30000mm num_results=600  gain=-1
+error unpacking payload: unpack requires a buffer of 0 bytes
+msg_data: bytearray(b'BR\xc1\t\n\x00\x00\x00{\n  "session_id": 1,\n  "session_uptime": 224.119,\n  "session_devices": [\n    {\n      "url": "tcp://192.168.2.92:51200",\n      "options": {\n        "transducer_deg": -90,\n        "imu_deg": 0,\n        "doppler_enable": true\n      },\n      "device_id": 1,\n      "product_id": "os450",\n      "nickname": "Port-Omniscan",\n      "status": "CONNECTED"\n    },\n    {\n      "url": "tcp://192.168.2.93:51200",\n      "options": {\n        "transducer_deg": 90,\n        "imu_deg": 0,\n        "doppler_enable": true\n      },\n      "device_id": 2,\n      "product_id": "os450",\n      "nickname": "Starboard-Omniscan",\n      "status": "CONNECTED"\n    }\n  ],\n  "session_platform": {\n    "url": "ws://blueos.local:6040/v1/ws/mavlink?filter=ATTITUDE|GLOBAL_POSITION_INT|LOCAL_POSITION_NED|HOME_POSITION|HEARTBEAT|SCALED_PRESSURE2|DISTANCE_SENSOR|GPS_GLOBAL_ORIGIN|PARAM_VALUE|VFR_HUD|STATUSTEXT|AUTOPILOT_VERSION",\n    "protocol": "mavlink2rest",\n    "options": {\n      "system_id": 1,\n      "periodic_messages": [\n        {\n          "message_id": 0,\n          "frequency_hz": 1\n        },\n        {\n          "message_id": 30,\n          "frequency_hz": 30\n        },\n        {\n          "message_id": 33,\n          "frequency_hz": 30\n        },\n        {\n          "message_id": 32,\n          "frequency_hz": 30\n        },\n        {\n          "message_id": 137,\n          "frequency_hz": 3\n        },\n        {\n          "message_id": 74,\n          "frequency_hz": 3\n        },\n        {\n          "message_id": 49,\n          "frequency_hz": 1\n        },\n        {\n          "message_id": 148,\n          "frequency_hz": 0.016666666666666666\n        }\n      ]\n    },\n    "nickname": "Sim2Sea",\n    "model": "blue_boat",\n    "device_id": 3,\n    "status": "CONNECTED"\n  },\n  "session_clients": [\n    {\n      "protocol": "ws",\n      "address": "::ffff:192.168.2.1",\n      "port": 58677,\n      "write": true\n    },\n    {\n      "protocol": "ws",\n      "address": "::ffff:192.168.2.1",\n      "port": 60203,\n      "write": false\n    }\n  ],\n  "session_plan_name": "Sim2Sea+DualOmniscan",\n  "is_recording": true,\n  "sonarlink_version": "1.14.33-beta",\n  "os_hostname": "blueos",\n  "os_uptime": 1432.98,\n  "os_version": "#1415 SMP Fri Apr 30 15:50:57 BST 2021",\n  "os_platform": "linux",\n  "os_release": "5.10.33-v7l+",\n  "process_path": "/usr/bin/node",\n  "process_version": "v22.22.0",\n  "process_uptime": 1346.922970785,\n  "process_arch": "arm",\n  "timestamp": "2026-07-21T14:24:03.951Z",\n  "timestamp_timezone_offset": 0\n}\xfe\x87'), header: (66, 82, 2497, 10, 0, 0)
+format: <, buf: bytearray(b'{\n  "session_id": 1,\n  "session_uptime": 224.119,\n  "session_devices": [\n    {\n      "url": "tcp://192.168.2.92:51200",\n      "options": {\n        "transducer_deg": -90,\n        "imu_deg": 0,\n        "doppler_enable": true\n      },\n      "device_id": 1,\n      "product_id": "os450",\n      "nickname": "Port-Omniscan",\n      "status": "CONNECTED"\n    },\n    {\n      "url": "tcp://192.168.2.93:51200",\n      "options": {\n        "transducer_deg": 90,\n        "imu_deg": 0,\n        "doppler_enable": true\n      },\n      "device_id": 2,\n      "product_id": "os450",\n      "nickname": "Starboard-Omniscan",\n      "status": "CONNECTED"\n    }\n  ],\n  "session_platform": {\n    "url": "ws://blueos.local:6040/v1/ws/mavlink?filter=ATTITUDE|GLOBAL_POSITION_INT|LOCAL_POSITION_NED|HOME_POSITION|HEARTBEAT|SCALED_PRESSURE2|DISTANCE_SENSOR|GPS_GLOBAL_ORIGIN|PARAM_VALUE|VFR_HUD|STATUSTEXT|AUTOPILOT_VERSION",\n    "protocol": "mavlink2rest",\n    "options": {\n      "system_id": 1,\n      "periodic_messages": [\n        {\n          "message_id": 0,\n          "frequency_hz": 1\n        },\n        {\n          "message_id": 30,\n          "frequency_hz": 30\n        },\n        {\n          "message_id": 33,\n          "frequency_hz": 30\n        },\n        {\n          "message_id": 32,\n          "frequency_hz": 30\n        },\n        {\n          "message_id": 137,\n          "frequency_hz": 3\n        },\n        {\n          "message_id": 74,\n          "frequency_hz": 3\n        },\n        {\n          "message_id": 49,\n          "frequency_hz": 1\n        },\n        {\n          "message_id": 148,\n          "frequency_hz": 0.016666666666666666\n        }\n      ]\n    },\n    "nickname": "Sim2Sea",\n    "model": "blue_boat",\n    "device_id": 3,\n    "status": "CONNECTED"\n  },\n  "session_clients": [\n    {\n      "protocol": "ws",\n      "address": "::ffff:192.168.2.1",\n      "port": 58677,\n      "write": true\n    },\n    {\n      "protocol": "ws",\n      "address": "::ffff:192.168.2.1",\n      "port": 60203,\n      "write": false\n    }\n  ],\n  "session_plan_name": "Sim2Sea+DualOmniscan",\n  "is_recording": true,\n  "sonarlink_version": "1.14.33-beta",\n  "os_hostname": "blueos",\n  "os_uptime": 1432.98,\n  "os_version": "#1415 SMP Fri Apr 30 15:50:57 BST 2021",\n  "os_platform": "linux",\n  "os_release": "5.10.33-v7l+",\n  "process_path": "/usr/bin/node",\n  "process_version": "v22.22.0",\n  "process_uptime": 1346.922970785,\n  "process_arch": "arm",\n  "timestamp": "2026-07-21T14:24:03.951Z",\n  "timestamp_timezone_offset": 0\n}')
+
+[detect] ch1 ping #4227: clear
+[detect] ch0 ping #4228: 1 object(s)  gps=(38.279286, -76.622949)  hdg=45.5deg
+    range~7.7m  size=23x31px  src=blob  contact=#22  latlon=(38.279217, -76.622949)
+[detect] ch1 ping #4277: clear
+[detect] ch0 ping #4278: 2 object(s)  gps=(38.279286, -76.622948)  hdg=53.7deg
+    range~7.6m  size=26x54px  src=blob  contact=#22  latlon=(38.279217, -76.622948)
+    range~0.9m  size=14x81px  src=blob  contact=#23  latlon=(38.279277, -76.622948)
+[detect] ch1 ping #4327: 1 object(s)  gps=(38.279285, -76.622948)  hdg=57.4deg
+    range~0.4m  size=52x118px  src=blob  contact=#23  latlon=(38.279281, -76.622948)
+[detect] ch0 ping #4328: 2 object(s)  gps=(38.279285, -76.622948)  hdg=57.6deg
+    range~0.9m  size=21x131px  src=blob  contact=#23  latlon=(38.279277, -76.622948)
+    range~7.6m  size=28x54px  src=blob  contact=#22  latlon=(38.279217, -76.622948)
+[detect] ch1 ping #4377: 1 object(s)  gps=(38.279285, -76.622947)  hdg=61.4deg
+    range~0.5m  size=50x113px  src=blob  contact=#23  latlon=(38.279281, -76.622947)
+[detect] ch0 ping #4378: 3 object(s)  gps=(38.279285, -76.622947)  hdg=61.5deg
+    range~0.9m  size=21x131px  src=blob  contact=#23  latlon=(38.279276, -76.622947)
+    range~7.7m  size=25x49px  src=blob  contact=#22  latlon=(38.279216, -76.622947)
+    range~0.9m  size=15x46px  src=blob  contact=#23  latlon=(38.279277, -76.622947)
+[detect] ch1 ping #4427: 2 object(s)  gps=(38.279284, -76.622947)  hdg=67.1deg
+    range~0.5m  size=47x97px  src=blob  contact=#23  latlon=(38.279280, -76.622947)
+    range~12.5m  size=20x45px  src=blob  contact=#24  latlon=(38.279171, -76.622947)
+[detect] ch0 ping #4428: 2 object(s)  gps=(38.279284, -76.622947)  hdg=67.8deg
+    range~7.7m  size=23x48px  src=blob  contact=#22  latlon=(38.279215, -76.622947)
+    range~0.9m  size=14x40px  src=blob  contact=#23  latlon=(38.279276, -76.622947)
+[detect] ch1 ping #4477: 2 object(s)  gps=(38.279284, -76.622947)  hdg=67.6deg
+    range~0.5m  size=41x88px  src=blob  contact=#23  latlon=(38.279279, -76.622947)
+    range~12.5m  size=23x94px  src=blob  contact=#24  latlon=(38.279172, -76.622947)
+[detect] ch0 ping #4478: 1 object(s)  gps=(38.279284, -76.622947)  hdg=67.8deg
+    range~7.7m  size=23x48px  src=blob  contact=#22  latlon=(38.279215, -76.622947)
+[detect] ch1 ping #4527: 2 object(s)  gps=(38.279285, -76.622946)  hdg=67.0deg
+    range~12.3m  size=39x142px  src=blob  contact=#24  latlon=(38.279174, -76.622946)
+    range~0.5m  size=38x58px  src=blob  contact=#23  latlon=(38.279280, -76.622946)
+[detect] ch0 ping #4528: clear
+[detect] ch1 ping #4577: 2 object(s)  gps=(38.279286, -76.622943)  hdg=67.3deg
+    range~12.3m  size=41x182px  src=blob  contact=#24  latlon=(38.279175, -76.622943)
+    range~0.6m  size=36x48px  src=blob  contact=#23  latlon=(38.279281, -76.622943)
+[detect] ch0 ping #4578: 1 object(s)  gps=(38.279286, -76.622944)  hdg=67.3deg
+    range~7.7m  size=23x48px  src=blob  contact=#22  latlon=(38.279217, -76.622944)
+[detect] ch1 ping #4627: 1 object(s)  gps=(38.279287, -76.622941)  hdg=71.8deg
+    range~12.5m  size=18x59px  src=blob  contact=#24  latlon=(38.279174, -76.622941)
+[detect] ch0 ping #4628: 1 object(s)  gps=(38.279287, -76.622940)  hdg=72.3deg
+    range~7.7m  size=23x48px  src=blob  contact=#22  latlon=(38.279218, -76.622940)
+[detect] ch1 ping #4677: 1 object(s)  gps=(38.279288, -76.622937)  hdg=82.3deg
+    range~12.3m  size=32x49px  src=blob  contact=#24  latlon=(38.279177, -76.622937)
+[detect] ch0 ping #4678: 1 object(s)  gps=(38.279288, -76.622937)  hdg=82.9deg
+    range~7.7m  size=23x48px  src=blob  contact=#22  latlon=(38.279219, -76.622937)
+[detect] ch1 ping #4727: 1 object(s)  gps=(38.279288, -76.622933)  hdg=93.7deg
+    range~12.3m  size=29x39px  src=blob  contact=#24  latlon=(38.279177, -76.622933)
+[detect] ch0 ping #4728: 1 object(s)  gps=(38.279287, -76.622933)  hdg=95.4deg
+    range~7.2m  size=15x90px  src=blob  contact=#22  latlon=(38.279222, -76.622933)
+[detect] ch1 ping #4777: 2 object(s)  gps=(38.279286, -76.622929)  hdg=107.6deg
+    range~13.2m  size=29x76px  src=blob  contact=#24  latlon=(38.279167, -76.622929)
+    range~12.3m  size=28x39px  src=blob  contact=#24  latlon=(38.279175, -76.622929)
+[detect] ch0 ping #4778: clear
+[detect] ch1 ping #4827: 4 object(s)  gps=(38.279283, -76.622927)  hdg=120.5deg
+    range~7.4m  size=22x59px  src=blob  contact=#22  latlon=(38.279217, -76.622927)
+    range~12.3m  size=28x39px  src=blob  contact=#24  latlon=(38.279173, -76.622927)
+    range~13.1m  size=36x29px  src=blob  contact=#24  latlon=(38.279165, -76.622927)
+    range~13.1m  size=34x27px  src=blob  contact=#24  latlon=(38.279166, -76.622927)
+[detect] ch0 ping #4828: clear
+[detect] ch1 ping #4877: 2 object(s)  gps=(38.279280, -76.622924)  hdg=134.3deg
+    range~7.4m  size=21x59px  src=blob  contact=#22  latlon=(38.279214, -76.622924)
+    range~12.3m  size=28x42px  src=blob  contact=#24  latlon=(38.279170, -76.622924)
+[detect] ch0 ping #4878: clear
+[detect] ch1 ping #4927: 3 object(s)  gps=(38.279278, -76.622919)  hdg=152.5deg
+    range~13.1m  size=48x40px  src=blob  contact=#24  latlon=(38.279160, -76.622919)
+    range~12.3m  size=28x43px  src=blob  contact=#24  latlon=(38.279167, -76.622919)
+    range~7.4m  size=21x57px  src=blob  contact=#1  latlon=(38.279211, -76.622919)
+[detect] ch0 ping #4928: clear
+[detect] ch1 ping #4977: 5 object(s)  gps=(38.279275, -76.622915)  hdg=158.6deg
+    range~12.8m  size=66x29px  src=blob  contact=#24  latlon=(38.279160, -76.622915)
+    range~12.3m  size=29x55px  src=blob  contact=#24  latlon=(38.279165, -76.622915)
+    range~13.2m  size=28x50px  src=blob  contact=#24  latlon=(38.279156, -76.622915)
+    range~7.4m  size=20x57px  src=blob  contact=#1  latlon=(38.279209, -76.622915)
+    range~12.5m  size=9x63px  src=blob  contact=#24  latlon=(38.279163, -76.622915)
+[detect] ch0 ping #4978: clear
+[detect] ch1 ping #5027: 2 object(s)  gps=(38.279273, -76.622911)  hdg=155.0deg
+    range~12.5m  size=17x92px  src=blob  contact=#24  latlon=(38.279161, -76.622911)
+    range~13.2m  size=32x26px  src=blob  contact=#24  latlon=(38.279155, -76.622911)
+[detect] ch0 ping #5028: clear
+[detect] ch1 ping #5077: 3 object(s)  gps=(38.279271, -76.622907)  hdg=153.2deg
+    range~0.5m  size=42x162px  src=blob  contact=#2  latlon=(38.279267, -76.622907)
+    range~12.5m  size=22x137px  src=blob  contact=#24  latlon=(38.279159, -76.622907)
+    range~12.6m  size=16x32px  src=blob  contact=#24  latlon=(38.279158, -76.622907)
+[detect] ch0 ping #5078: clear
+[detect] ch1 ping #5127: 3 object(s)  gps=(38.279270, -76.622904)  hdg=159.0deg
+    range~0.5m  size=40x147px  src=blob  contact=#2  latlon=(38.279266, -76.622904)
+    range~12.5m  size=18x120px  src=blob  contact=#24  latlon=(38.279157, -76.622904)
+    range~12.6m  size=16x33px  src=blob  contact=#24  latlon=(38.279157, -76.622904)
+[detect] ch0 ping #5128: 1 object(s)  gps=(38.279270, -76.622903)  hdg=159.0deg
+    range~10.9m  size=12x73px  src=blob  contact=#24  latlon=(38.279172, -76.622903)
+[detect] ch1 ping #5177: 3 object(s)  gps=(38.279269, -76.622900)  hdg=170.6deg
+    range~0.4m  size=47x183px  src=blob  contact=#2  latlon=(38.279266, -76.622900)
+    range~12.5m  size=15x71px  src=blob  contact=#24  latlon=(38.279156, -76.622900)
+    range~12.6m  size=17x33px  src=blob  contact=#24  latlon=(38.279156, -76.622900)
+[detect] ch0 ping #5178: 1 object(s)  gps=(38.279269, -76.622899)  hdg=171.9deg
+    range~10.9m  size=12x74px  src=blob  contact=#24  latlon=(38.279171, -76.622899)
+[detect] ch1 ping #5227: 1 object(s)  gps=(38.279269, -76.622894)  hdg=169.1deg
+    range~12.6m  size=18x58px  src=blob  contact=#24  latlon=(38.279156, -76.622894)
+[detect] ch0 ping #5228: 1 object(s)  gps=(38.279269, -76.622893)  hdg=165.4deg
+    range~10.9m  size=12x74px  src=blob  contact=#24  latlon=(38.279171, -76.622893)
+[detect] ch1 ping #5277: clear
+[detect] ch0 ping #5278: 1 object(s)  gps=(38.279267, -76.622887)  hdg=143.4deg
+    range~10.9m  size=11x82px  src=blob  contact=#24  latlon=(38.279169, -76.622887)
+[detect] ch1 ping #5327: clear
+[detect] ch0 ping #5328: clear
+[detect] ch1 ping #5377: clear
+[detect] ch0 ping #5378: clear
+[detect] ch1 ping #5427: 1 object(s)  gps=(38.279275, -76.622941)  hdg=261.0deg
+    range~12.7m  size=131x45px  src=blob  contact=#24  latlon=(38.279161, -76.622941)
+[detect] ch0 ping #5428: 1 object(s)  gps=(38.279275, -76.622952)  hdg=262.0deg
+    range~13.2m  size=20x29px  src=blob  contact=#24  latlon=(38.279156, -76.622952)
+[detect] ch1 ping #5477: 2 object(s)  gps=(38.279278, -76.623046)  hdg=287.4deg
+    range~12.5m  size=119x55px  src=blob  contact=#25  latlon=(38.279166, -76.623046)
+    range~11.4m  size=85x51px  src=blob  contact=#25  latlon=(38.279176, -76.623046)
+[detect] ch0 ping #5478: clear
+[detect] ch1 ping #5527: 2 object(s)  gps=(38.279303, -76.623002)  hdg=73.5deg
+    range~11.4m  size=88x101px  src=blob  contact=#26  latlon=(38.279200, -76.623002)
+    range~12.5m  size=143x60px  src=blob  contact=#26  latlon=(38.279190, -76.623002)
+[detect] ch0 ping #5528: 1 object(s)  gps=(38.279304, -76.622994)  hdg=72.8deg
+    range~13.2m  size=18x34px  src=blob  contact=#26  latlon=(38.279186, -76.622994)
+[detect] ch1 ping #5577: 4 object(s)  gps=(38.279311, -76.622947)  hdg=85.7deg
+    range~12.5m  size=143x60px  src=blob  contact=#22  latlon=(38.279198, -76.622946)
+    range~11.6m  size=41x67px  src=blob  contact=#22  latlon=(38.279206, -76.622946)
+    range~11.8m  size=48x48px  src=blob  contact=#22  latlon=(38.279205, -76.622946)
+    range~11.5m  size=37x50px  src=blob  contact=#22  latlon=(38.279208, -76.622946)
+[detect] ch0 ping #5578: clear
+[detect] ch1 ping #5627: 6 object(s)  gps=(38.279296, -76.622962)  hdg=31.3deg
+    range~12.5m  size=143x62px  src=blob  contact=#27  latlon=(38.279183, -76.622962)
+    range~11.6m  size=45x45px  src=blob  contact=#22  latlon=(38.279191, -76.622962)
+    range~11.8m  size=29x53px  src=blob  contact=#22  latlon=(38.279190, -76.622962)
+    range~11.9m  size=33x40px  src=blob  contact=#22  latlon=(38.279188, -76.622962)
+    range~11.7m  size=18x50px  src=blob  contact=#22  latlon=(38.279191, -76.622962)
+    range~11.5m  size=33x25px  src=blob  contact=#22  latlon=(38.279192, -76.622962)
+[detect] ch0 ping #5628: clear
+[detect] ch1 ping #5677: 4 object(s)  gps=(38.279243, -76.622960)  hdg=356.2deg
+    range~12.5m  size=144x68px  src=blob  contact=#28  latlon=(38.279131, -76.622960)
+    range~11.7m  size=33x47px  src=blob  contact=#28  latlon=(38.279138, -76.622960)
+    range~12.0m  size=24x32px  src=blob  contact=#28  latlon=(38.279135, -76.622960)
+    range~11.9m  size=15x50px  src=blob  contact=#28  latlon=(38.279136, -76.622960)
+[detect] ch0 ping #5678: clear
+[detect] ch1 ping #5727: 3 object(s)  gps=(38.279256, -76.622988)  hdg=290.5deg
+    range~12.5m  size=144x72px  src=blob  contact=#28  latlon=(38.279143, -76.622988)
+    range~11.9m  size=15x49px  src=blob  contact=#28  latlon=(38.279149, -76.622988)
+    range~11.1m  size=23x31px  src=blob  contact=#28  latlon=(38.279156, -76.622988)
+[detect] ch0 ping #5728: clear
+[detect] ch1 ping #5777: 3 object(s)  gps=(38.279253, -76.622972)  hdg=148.9deg
+    range~12.5m  size=145x75px  src=blob  contact=#28  latlon=(38.279140, -76.622972)
+    range~9.9m  size=75x15px  src=blob  contact=#27  latlon=(38.279164, -76.622972)
+    range~11.1m  size=23x31px  src=blob  contact=#27  latlon=(38.279153, -76.622972)
+[detect] ch0 ping #5778: clear
+[detect] ch1 ping #5827: 3 object(s)  gps=(38.279224, -76.622896)  hdg=106.4deg
+    range~12.5m  size=145x117px  src=blob  contact=#29  latlon=(38.279111, -76.622896)
+    range~9.9m  size=74x15px  src=blob  contact=#29  latlon=(38.279135, -76.622896)
+    range~11.1m  size=23x43px  src=blob  contact=#29  latlon=(38.279124, -76.622896)
+[detect] ch0 ping #5828: clear
+[detect] ch1 ping #5877: 5 object(s)  gps=(38.279220, -76.622884)  hdg=112.5deg
+    range~12.5m  size=147x67px  src=blob  contact=#29  latlon=(38.279108, -76.622884)
+    range~9.9m  size=75x16px  src=blob  contact=#29  latlon=(38.279132, -76.622884)
+    range~12.0m  size=33x34px  src=blob  contact=#29  latlon=(38.279112, -76.622884)
+    range~11.1m  size=24x44px  src=blob  contact=#29  latlon=(38.279120, -76.622884)
+    range~11.9m  size=15x49px  src=blob  contact=#29  latlon=(38.279113, -76.622884)
+[detect] ch0 ping #5878: clear
+[detect] ch1 ping #5927: 5 object(s)  gps=(38.279215, -76.622875)  hdg=121.9deg
+    range~11.8m  size=178x44px  src=blob  contact=#29  latlon=(38.279109, -76.622875)
+    range~11.5m  size=58x116px  src=blob  contact=#29  latlon=(38.279112, -76.622875)
+    range~9.9m  size=86x23px  src=blob  contact=#29  latlon=(38.279126, -76.622875)
+    range~11.8m  size=32x30px  src=blob  contact=#29  latlon=(38.279109, -76.622875)
+    range~12.2m  size=48x13px  src=blob  contact=#29  latlon=(38.279105, -76.622875)
+[detect] ch0 ping #5928: clear
+[detect] ch1 ping #5977: 3 object(s)  gps=(38.279209, -76.622868)  hdg=128.1deg
+    range~11.4m  size=111x196px  src=blob  contact=#29  latlon=(38.279107, -76.622868)
+    range~10.8m  size=61x58px  src=blob  contact=#29  latlon=(38.279112, -76.622868)
+    range~9.9m  size=75x15px  src=blob  contact=#29  latlon=(38.279120, -76.622868)
+[detect] ch0 ping #5978: clear
+[detect] ch1 ping #6027: 4 object(s)  gps=(38.279205, -76.622864)  hdg=131.6deg
+    range~11.4m  size=116x148px  src=blob  contact=#29  latlon=(38.279102, -76.622864)
+    range~10.9m  size=59x68px  src=blob  contact=#29  latlon=(38.279107, -76.622864)
+    range~11.4m  size=69x18px  src=blob  contact=#29  latlon=(38.279102, -76.622864)
+    range~9.9m  size=74x15px  src=blob  contact=#29  latlon=(38.279116, -76.622864)
+[detect] ch0 ping #6028: 2 object(s)  gps=(38.279204, -76.622863)  hdg=132.0deg
+    range~0.4m  size=47x26px  src=blob  contact=#30  latlon=(38.279201, -76.622863)
+    range~11.1m  size=24x29px  src=blob  contact=#29  latlon=(38.279104, -76.622863)
+[detect] ch1 ping #6077: 2 object(s)  gps=(38.279201, -76.622858)  hdg=133.3deg
+    range~11.3m  size=84x58px  src=blob  contact=#29  latlon=(38.279099, -76.622858)
+    range~9.9m  size=74x15px  src=blob  contact=#29  latlon=(38.279112, -76.622858)
+[detect] ch0 ping #6078: clear
+[detect] ch1 ping #6127: 5 object(s)  gps=(38.279195, -76.622852)  hdg=148.2deg
+    range~10.4m  size=159x91px  src=blob  contact=#29  latlon=(38.279101, -76.622852)
+    range~11.3m  size=86x59px  src=blob  contact=#29  latlon=(38.279094, -76.622852)
+    range~9.9m  size=86x23px  src=blob  contact=#29  latlon=(38.279106, -76.622852)
+    range~10.5m  size=40x42px  src=blob  contact=#29  latlon=(38.279100, -76.622852)
+    range~10.1m  size=34x17px  src=blob  contact=#29  latlon=(38.279104, -76.622852)
+[detect] ch0 ping #6128: 1 object(s)  gps=(38.279195, -76.622851)  hdg=149.4deg
+    range~0.5m  size=42x65px  src=blob  contact=#30  latlon=(38.279191, -76.622851)
+[detect] ch1 ping #6177: 4 object(s)  gps=(38.279191, -76.622845)  hdg=155.8deg
+    range~11.2m  size=96x62px  src=blob  contact=#31  latlon=(38.279091, -76.622845)
+    range~10.3m  size=113x41px  src=blob  contact=#29  latlon=(38.279098, -76.622845)
+    range~9.9m  size=89x26px  src=blob  contact=#29  latlon=(38.279102, -76.622845)
+    range~10.4m  size=39x18px  src=blob  contact=#29  latlon=(38.279097, -76.622845)
+[detect] ch0 ping #6178: clear
+Traceback (most recent call last):
+  File "C:\Users\kbr_e\Downloads\blueBoat-main\blueBoat-main\main.py", line 350, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\kbr_e\Downloads\blueBoat-main\blueBoat-main\main.py", line 343, in main
+    sonar.run_second_mission(auto_reconnect=True,
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+                             missionEnd=int(m2_end) if m2_end else None)
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\kbr_e\Downloads\blueBoat-main\blueBoat-main\sonar_ws.py", line 305, in run_second_mission
+    msg = connection.recv_match(blocking=True, timeout=5)
+  File "C:\Users\kbr_e\Downloads\blueBoat-main\blueBoat-main\venv\Lib\site-packages\pymavlink\mavutil.py", line 526, in recv_match
+    self.select(timeout/2)
+    ~~~~~~~~~~~^^^^^^^^^^^
+  File "C:\Users\kbr_e\Downloads\blueBoat-main\blueBoat-main\venv\Lib\site-packages\pymavlink\mavutil.py", line 346, in select
+    (rin, win, xin) = select.select([self.fd], [], [], timeout)
+                      ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt
+(venv) PS C:\Users\kbr_e\Downloads\blueBoat-main\blueBoat-main> ^C
+(venv) PS C:\Users\kbr_e\Downloads\blueBoat-main\blueBoat-main> python main.py
+[main] sonar    →  192.168.2.2:7077
+[main] mavlink  →  192.168.2.2:6040
+[ws] sonar thread started
+[mavlink] connected  ws://192.168.2.2:6040/v1/ws/mavlink
+[ws] sonar connecting...
+[ws] connected  session_id=1
+[ws] start_ping  length=30000mm num_results=600  gain=-1
+error unpacking payload: unpack requires a buffer of 0 bytes
+msg_data: bytearray(b'BR\xc2\t\n\x00\x00\x00{\n  "session_id": 1,\n  "session_uptime": 447.929,\n  "session_devices": [\n    {\n      "url": "tcp://192.168.2.92:51200",\n      "options": {\n        "transducer_deg": -90,\n        "imu_deg": 0,\n        "doppler_enable": true\n      },\n      "device_id": 1,\n      "product_id": "os450",\n      "nickname": "Port-Omniscan",\n      "status": "CONNECTED"\n    },\n    {\n      "url": "tcp://192.168.2.93:51200",\n      "options": {\n        "transducer_deg": 90,\n        "imu_deg": 0,\n        "doppler_enable": true\n      },\n      "device_id": 2,\n      "product_id": "os450",\n      "nickname": "Starboard-Omniscan",\n      "status": "CONNECTED"\n    }\n  ],\n  "session_platform": {\n    "url": "ws://blueos.local:6040/v1/ws/mavlink?filter=ATTITUDE|GLOBAL_POSITION_INT|LOCAL_POSITION_NED|HOME_POSITION|HEARTBEAT|SCALED_PRESSURE2|DISTANCE_SENSOR|GPS_GLOBAL_ORIGIN|PARAM_VALUE|VFR_HUD|STATUSTEXT|AUTOPILOT_VERSION",\n    "protocol": "mavlink2rest",\n    "options": {\n      "system_id": 1,\n      "periodic_messages": [\n        {\n          "message_id": 0,\n          "frequency_hz": 1\n        },\n        {\n          "message_id": 30,\n          "frequency_hz": 30\n        },\n        {\n          "message_id": 33,\n          "frequency_hz": 30\n        },\n        {\n          "message_id": 32,\n          "frequency_hz": 30\n        },\n        {\n          "message_id": 137,\n          "frequency_hz": 3\n        },\n        {\n          "message_id": 74,\n          "frequency_hz": 3\n        },\n        {\n          "message_id": 49,\n          "frequency_hz": 1\n        },\n        {\n          "message_id": 148,\n          "frequency_hz": 0.016666666666666666\n        }\n      ]\n    },\n    "nickname": "Sim2Sea",\n    "model": "blue_boat",\n    "device_id": 3,\n    "status": "CONNECTED"\n  },\n  "session_clients": [\n    {\n      "protocol": "ws",\n      "address": "::ffff:192.168.2.1",\n      "port": 58677,\n      "write": true\n    },\n    {\n      "protocol": "ws",\n      "address": "::ffff:192.168.2.1",\n      "port": 65164,\n      "write": false\n    }\n  ],\n  "session_plan_name": "Sim2Sea+DualOmniscan",\n  "is_recording": false,\n  "sonarlink_version": "1.14.33-beta",\n  "os_hostname": "blueos",\n  "os_uptime": 1656.79,\n  "os_version": "#1415 SMP Fri Apr 30 15:50:57 BST 2021",\n  "os_platform": "linux",\n  "os_release": "5.10.33-v7l+",\n  "process_path": "/usr/bin/node",\n  "process_version": "v22.22.0",\n  "process_uptime": 1570.732810356,\n  "process_arch": "arm",\n  "timestamp": "2026-07-21T14:27:47.761Z",\n  "timestamp_timezone_offset": 0\n}g\x88'), header: (66, 82, 2498, 10, 0, 0)
+format: <, buf: bytearray(b'{\n  "session_id": 1,\n  "session_uptime": 447.929,\n  "session_devices": [\n    {\n      "url": "tcp://192.168.2.92:51200",\n      "options": {\n        "transducer_deg": -90,\n        "imu_deg": 0,\n        "doppler_enable": true\n      },\n      "device_id": 1,\n      "product_id": "os450",\n      "nickname": "Port-Omniscan",\n      "status": "CONNECTED"\n    },\n    {\n      "url": "tcp://192.168.2.93:51200",\n      "options": {\n        "transducer_deg": 90,\n        "imu_deg": 0,\n        "doppler_enable": true\n      },\n      "device_id": 2,\n      "product_id": "os450",\n      "nickname": "Starboard-Omniscan",\n      "status": "CONNECTED"\n    }\n  ],\n  "session_platform": {\n    "url": "ws://blueos.local:6040/v1/ws/mavlink?filter=ATTITUDE|GLOBAL_POSITION_INT|LOCAL_POSITION_NED|HOME_POSITION|HEARTBEAT|SCALED_PRESSURE2|DISTANCE_SENSOR|GPS_GLOBAL_ORIGIN|PARAM_VALUE|VFR_HUD|STATUSTEXT|AUTOPILOT_VERSION",\n    "protocol": "mavlink2rest",\n    "options": {\n      "system_id": 1,\n      "periodic_messages": [\n        {\n          "message_id": 0,\n          "frequency_hz": 1\n        },\n        {\n          "message_id": 30,\n          "frequency_hz": 30\n        },\n        {\n          "message_id": 33,\n          "frequency_hz": 30\n        },\n        {\n          "message_id": 32,\n          "frequency_hz": 30\n        },\n        {\n          "message_id": 137,\n          "frequency_hz": 3\n        },\n        {\n          "message_id": 74,\n          "frequency_hz": 3\n        },\n        {\n          "message_id": 49,\n          "frequency_hz": 1\n        },\n        {\n          "message_id": 148,\n          "frequency_hz": 0.016666666666666666\n        }\n      ]\n    },\n    "nickname": "Sim2Sea",\n    "model": "blue_boat",\n    "device_id": 3,\n    "status": "CONNECTED"\n  },\n  "session_clients": [\n    {\n      "protocol": "ws",\n      "address": "::ffff:192.168.2.1",\n      "port": 58677,\n      "write": true\n    },\n    {\n      "protocol": "ws",\n      "address": "::ffff:192.168.2.1",\n      "port": 65164,\n      "write": false\n    }\n  ],\n  "session_plan_name": "Sim2Sea+DualOmniscan",\n  "is_recording": false,\n  "sonarlink_version": "1.14.33-beta",\n  "os_hostname": "blueos",\n  "os_uptime": 1656.79,\n  "os_version": "#1415 SMP Fri Apr 30 15:50:57 BST 2021",\n  "os_platform": "linux",\n  "os_release": "5.10.33-v7l+",\n  "process_path": "/usr/bin/node",\n  "process_version": "v22.22.0",\n  "process_uptime": 1570.732810356,\n  "process_arch": "arm",\n  "timestamp": "2026-07-21T14:27:47.761Z",\n  "timestamp_timezone_offset": 0\n}')
+
+Reached waypoint: 1
+[detect] ch1 ping #7969: clear
+[detect] ch0 ping #7969: clear
+[detect] ch1 ping #8019: 1 object(s)  gps=(38.279466, -76.622861)  hdg=8.4deg
+    range~11.7m  size=112x18px  src=blob  contact=#1  latlon=(38.279360, -76.622861)
+[detect] ch0 ping #8019: clear
+[detect] ch1 ping #8069: 3 object(s)  gps=(38.279488, -76.622856)  hdg=11.1deg
+    range~12.7m  size=69x18px  src=blob  contact=#1  latlon=(38.279374, -76.622856)
+    range~12.0m  size=58x16px  src=blob  contact=#1  latlon=(38.279380, -76.622856)
+    range~11.8m  size=50x12px  src=blob  contact=#1  latlon=(38.279382, -76.622856)
+[detect] ch0 ping #8069: clear
+[detect] ch1 ping #8119: 1 object(s)  gps=(38.279502, -76.622853)  hdg=15.6deg
+    range~11.7m  size=90x13px  src=blob  contact=#1  latlon=(38.279397, -76.622853)
+[detect] ch0 ping #8119: clear
+Reached waypoint: 2
+[detect] ch1 ping #8169: 2 object(s)  gps=(38.279503, -76.622852)  hdg=335.2deg
+    range~11.8m  size=145x22px  src=blob  contact=#1  latlon=(38.279397, -76.622852)
+    range~11.7m  size=75x13px  src=blob  contact=#1  latlon=(38.279397, -76.622852)
+[detect] ch0 ping #8169: clear
+[detect] ch1 ping #8219: 2 object(s)  gps=(38.279503, -76.622852)  hdg=291.3deg
+    range~12.7m  size=68x17px  src=blob  contact=#1  latlon=(38.279389, -76.622852)
+    range~12.0m  size=55x16px  src=blob  contact=#1  latlon=(38.279395, -76.622852)
+[detect] ch0 ping #8219: clear
+[detect] ch1 ping #8269: clear
+[detect] ch0 ping #8269: clear
+[detect] ch1 ping #8319: 2 object(s)  gps=(38.279502, -76.622881)  hdg=270.5deg
+    range~12.0m  size=53x14px  src=blob  contact=#1  latlon=(38.279393, -76.622881)
+    range~12.7m  size=36x17px  src=blob  contact=#1  latlon=(38.279387, -76.622881)
+[detect] ch0 ping #8319: clear
+[detect] ch1 ping #8369: 2 object(s)  gps=(38.279501, -76.622912)  hdg=275.0deg
+    range~12.0m  size=54x14px  src=blob  contact=#2  latlon=(38.279393, -76.622912)
+    range~12.7m  size=35x17px  src=blob  contact=#2  latlon=(38.279387, -76.622912)
+[detect] ch0 ping #8369: clear
+[detect] ch1 ping #8419: 2 object(s)  gps=(38.279501, -76.622946)  hdg=278.9deg
+    range~12.7m  size=66x18px  src=blob  contact=#3  latlon=(38.279387, -76.622946)
+    range~12.0m  size=54x14px  src=blob  contact=#3  latlon=(38.279394, -76.622946)
+[detect] ch0 ping #8419: clear
+[detect] ch1 ping #8469: 3 object(s)  gps=(38.279503, -76.622985)  hdg=279.8deg
+    range~12.7m  size=69x19px  src=blob  contact=#4  latlon=(38.279389, -76.622985)
+    range~12.0m  size=54x14px  src=blob  contact=#4  latlon=(38.279395, -76.622985)
+    range~11.8m  size=67x11px  src=blob  contact=#4  latlon=(38.279397, -76.622985)
+[detect] ch0 ping #8469: clear
+[detect] ch1 ping #8519: 3 object(s)  gps=(38.279504, -76.623024)  hdg=292.6deg
+    range~0.5m  size=52x137px  src=blob  contact=#5  latlon=(38.279499, -76.623024)
+    range~12.7m  size=71x20px  src=blob  contact=#6  latlon=(38.279390, -76.623024)
+    range~11.8m  size=72x16px  src=blob  contact=#6  latlon=(38.279398, -76.623024)
+Reached waypoint: 3
+[detect] ch0 ping #8519: 2 object(s)  gps=(38.279504, -76.623023)  hdg=301.8deg
+    range~13.2m  size=27x39px  src=blob  contact=#6  latlon=(38.279385, -76.623023)
+    range~13.0m  size=32x31px  src=blob  contact=#6  latlon=(38.279387, -76.623023)
+[detect] ch1 ping #8569: 2 object(s)  gps=(38.279504, -76.623023)  hdg=251.5deg
+    range~0.5m  size=55x134px  src=blob  contact=#5  latlon=(38.279500, -76.623023)
+    range~12.0m  size=37x35px  src=blob  contact=#6  latlon=(38.279396, -76.623023)
+[detect] ch0 ping #8569: 3 object(s)  gps=(38.279504, -76.623023)  hdg=247.6deg
+    range~13.0m  size=45x46px  src=blob  contact=#6  latlon=(38.279387, -76.623023)
+    range~12.6m  size=30x31px  src=blob  contact=#6  latlon=(38.279391, -76.623023)
+    range~10.4m  size=26x33px  src=blob  contact=#6  latlon=(38.279411, -76.623023)
+[detect] ch1 ping #8619: 3 object(s)  gps=(38.279506, -76.623022)  hdg=201.6deg
+    range~0.5m  size=53x122px  src=blob  contact=#5  latlon=(38.279501, -76.623022)
+    range~12.0m  size=41x37px  src=blob  contact=#6  latlon=(38.279398, -76.623022)
+    range~13.2m  size=24x29px  src=blob  contact=#6  latlon=(38.279387, -76.623022)
+[detect] ch0 ping #8619: clear
+[detect] ch1 ping #8669: 3 object(s)  gps=(38.279506, -76.623022)  hdg=178.7deg
+    range~0.5m  size=52x92px  src=blob  contact=#5  latlon=(38.279501, -76.623022)
+    range~12.0m  size=42x37px  src=blob  contact=#6  latlon=(38.279398, -76.623022)
+    range~13.2m  size=26x32px  src=blob  contact=#6  latlon=(38.279387, -76.623022)
+[detect] ch0 ping #8669: clear
+[detect] ch1 ping #8719: 3 object(s)  gps=(38.279485, -76.623021)  hdg=180.8deg
+    range~0.6m  size=44x47px  src=blob  contact=#5  latlon=(38.279480, -76.623021)
+    range~12.0m  size=39x36px  src=blob  contact=#6  latlon=(38.279377, -76.623021)
+    range~13.2m  size=26x32px  src=blob  contact=#6  latlon=(38.279366, -76.623021)
+[detect] ch0 ping #8719: 1 object(s)  gps=(38.279483, -76.623021)  hdg=182.0deg
+    range~0.9m  size=21x71px  src=blob  contact=#5  latlon=(38.279475, -76.623021)
+[detect] ch1 ping #8769: 1 object(s)  gps=(38.279462, -76.623022)  hdg=182.4deg
+    range~0.4m  size=64x47px  src=blob  contact=#7  latlon=(38.279458, -76.623022)
+[detect] ch0 ping #8769: 2 object(s)  gps=(38.279459, -76.623022)  hdg=183.0deg
+    range~1.0m  size=15x67px  src=blob  contact=#7  latlon=(38.279450, -76.623022)
+    range~1.0m  size=18x55px  src=blob  contact=#7  latlon=(38.279450, -76.623022)
+[detect] ch1 ping #8819: 2 object(s)  gps=(38.279437, -76.623023)  hdg=182.9deg
+    range~0.6m  size=53x47px  src=blob  contact=#7  latlon=(38.279431, -76.623023)
+    range~0.6m  size=40x31px  src=blob  contact=#7  latlon=(38.279431, -76.623023)
+[detect] ch0 ping #8819: 2 object(s)  gps=(38.279434, -76.623023)  hdg=182.3deg
+    range~0.7m  size=43x30px  src=blob  contact=#7  latlon=(38.279428, -76.623023)
+    range~1.0m  size=17x75px  src=blob  contact=#7  latlon=(38.279426, -76.623023)
+[detect] ch1 ping #8869: 2 object(s)  gps=(38.279415, -76.623025)  hdg=181.0deg
+    range~0.4m  size=67x47px  src=blob  contact=#6  latlon=(38.279411, -76.623025)
+    range~0.6m  size=40x33px  src=blob  contact=#6  latlon=(38.279409, -76.623025)
+[detect] ch0 ping #8869: 1 object(s)  gps=(38.279413, -76.623025)  hdg=180.8deg
+    range~0.6m  size=48x30px  src=blob  contact=#6  latlon=(38.279407, -76.623025)
+[detect] ch1 ping #8919: 2 object(s)  gps=(38.279393, -76.623026)  hdg=179.2deg
+    range~0.4m  size=67x46px  src=blob  contact=#6  latlon=(38.279389, -76.623026)
+    range~0.8m  size=37x27px  src=blob  contact=#6  latlon=(38.279386, -76.623026)
+[detect] ch0 ping #8919: 2 object(s)  gps=(38.279390, -76.623026)  hdg=179.8deg
+    range~0.6m  size=49x29px  src=blob  contact=#6  latlon=(38.279385, -76.623026)
+    range~0.7m  size=37x22px  src=blob  contact=#6  latlon=(38.279384, -76.623026)
+[detect] ch1 ping #8969: 2 object(s)  gps=(38.279370, -76.623026)  hdg=178.1deg
+    range~0.4m  size=67x45px  src=blob  contact=#6  latlon=(38.279366, -76.623026)
+    range~0.8m  size=37x27px  src=blob  contact=#8  latlon=(38.279363, -76.623026)
+[detect] ch0 ping #8969: 2 object(s)  gps=(38.279367, -76.623027)  hdg=178.5deg
+    range~0.7m  size=37x25px  src=blob  contact=#8  latlon=(38.279360, -76.623027)
+    range~0.9m  size=20x33px  src=blob  contact=#8  latlon=(38.279358, -76.623027)
+[detect] ch1 ping #9019: 3 object(s)  gps=(38.279346, -76.623028)  hdg=178.1deg
+    range~0.4m  size=67x41px  src=blob  contact=#8  latlon=(38.279343, -76.623028)
+    range~0.8m  size=32x41px  src=blob  contact=#8  latlon=(38.279339, -76.623028)
+    range~0.8m  size=37x26px  src=blob  contact=#8  latlon=(38.279339, -76.623028)
+[detect] ch0 ping #9019: clear
+[detect] ch1 ping #9069: 3 object(s)  gps=(38.279324, -76.623029)  hdg=178.4deg
+    range~0.4m  size=66x42px  src=blob  contact=#9  latlon=(38.279320, -76.623029)
+    range~0.8m  size=31x42px  src=blob  contact=#9  latlon=(38.279317, -76.623029)
+    range~0.8m  size=37x27px  src=blob  contact=#9  latlon=(38.279317, -76.623029)
+[detect] ch0 ping #9069: 1 object(s)  gps=(38.279321, -76.623030)  hdg=177.5deg
+    range~0.7m  size=43x40px  src=blob  contact=#9  latlon=(38.279314, -76.623030)
+[detect] ch1 ping #9119: 3 object(s)  gps=(38.279300, -76.623030)  hdg=179.0deg
+    range~0.4m  size=59x46px  src=blob  contact=#9  latlon=(38.279296, -76.623030)
+    range~0.7m  size=32x44px  src=blob  contact=#9  latlon=(38.279293, -76.623030)
+    range~0.8m  size=31x38px  src=blob  contact=#9  latlon=(38.279293, -76.623030)
+[detect] ch0 ping #9119: 1 object(s)  gps=(38.279298, -76.623030)  hdg=179.0deg
+    range~0.7m  size=44x38px  src=blob  contact=#9  latlon=(38.279291, -76.623030)
+[detect] ch1 ping #9169: 4 object(s)  gps=(38.279282, -76.623031)  hdg=168.2deg
+    range~0.4m  size=58x43px  src=blob  contact=#10  latlon=(38.279279, -76.623031)
+    range~0.7m  size=34x44px  src=blob  contact=#10  latlon=(38.279276, -76.623031)
+    range~0.5m  size=51x27px  src=blob  contact=#10  latlon=(38.279278, -76.623031)
+    range~0.8m  size=31x26px  src=blob  contact=#10  latlon=(38.279275, -76.623031)
+Reached waypoint: 4
+[detect] ch0 ping #9169: 1 object(s)  gps=(38.279282, -76.623032)  hdg=165.8deg
+    range~0.7m  size=39x35px  src=blob  contact=#10  latlon=(38.279276, -76.623032)
+[detect] ch1 ping #9219: 2 object(s)  gps=(38.279280, -76.623024)  hdg=85.4deg
+    range~0.7m  size=36x56px  src=blob  contact=#10  latlon=(38.279274, -76.623024)
+    range~0.6m  size=45x39px  src=blob  contact=#10  latlon=(38.279274, -76.623024)
+[detect] ch0 ping #9219: 2 object(s)  gps=(38.279280, -76.623017)  hdg=85.4deg
+    range~0.7m  size=39x34px  src=blob  contact=#10  latlon=(38.279274, -76.623017)
+    range~0.7m  size=26x29px  src=blob  contact=#10  latlon=(38.279274, -76.623017)
+Reached waypoint: 5
+Mission 1 complete!
+[ws] closed (code=None)
+[ws] sonar thread exiting (stop or no reconnect)
+
+[main] mission complete: 10 unique contact(s)
+    #01  (38.279386, -76.622859)  range~12.0m  blob  seen 11x
+    #02  (38.279390, -76.622910)  range~12.0m  blob  seen 2x
+    #03  (38.279390, -76.622945)  range~12.0m  blob  seen 2x
+    #04  (38.279393, -76.622982)  range~12.0m  blob  seen 3x
+    #05  (38.279493, -76.623022)  range~0.6m  blob  seen 6x
+    #06  (38.279391, -76.623024)  range~0.6m  blob  seen 22x
+    #07  (38.279440, -76.623023)  range~0.6m  blob  seen 7x
+    #08  (38.279351, -76.623027)  range~0.8m  blob  seen 6x
+    #09  (38.279306, -76.623030)  range~0.7m  blob  seen 8x
+    #10  (38.279276, -76.623027)  range~0.7m  blob  seen 9x
+[main] hand off log.to_records() / to_geojson() / to_csv() to your revisit planner
+[main] revisit filter: min_hits=1 largest=10 -> kept 10 of 10 contact(s)
+[main] sending 10 contact(s) to revisit planner (largest 10 by area, hits >= 1)
+[planner] wrote 10 coord(s) to contacts_coords.py for the revisit script (it does: from contacts_coords import coords)
+[main] launching uploader: python mavlink.py
+Heartbeat from system (system 0 component 0)
+ATTITUDE {time_boot_ms : 1703007, roll : 0.06288112699985504, pitch : -0.03670203313231468, yaw : 0.795285165309906, rollspeed : 0.05800667777657509, pitchspeed : -0.07234728336334229, yawspeed : 0.005536100827157497}
+{'mavpackettype': 'MISSION_REQUEST', 'target_system': 255, 'target_component': 0, 'seq': 0, 'mission_type': 1}
+{'mavpackettype': 'MISSION_REQUEST', 'target_system': 255, 'target_component': 0, 'seq': 1, 'mission_type': 1}
+{'mavpackettype': 'MISSION_REQUEST', 'target_system': 255, 'target_component': 0, 'seq': 2, 'mission_type': 1}
+{'mavpackettype': 'MISSION_REQUEST', 'target_system': 255, 'target_component': 0, 'seq': 3, 'mission_type': 1}
+{'mavpackettype': 'MISSION_REQUEST', 'target_system': 255, 'target_component': 0, 'seq': 4, 'mission_type': 1}
+{'mavpackettype': 'MISSION_REQUEST', 'target_system': 255, 'target_component': 0, 'seq': 5, 'mission_type': 1}
+{'mavpackettype': 'MISSION_REQUEST', 'target_system': 255, 'target_component': 0, 'seq': 6, 'mission_type': 1}
+{'mavpackettype': 'MISSION_REQUEST', 'target_system': 255, 'target_component': 0, 'seq': 7, 'mission_type': 1}
+{'mavpackettype': 'MISSION_REQUEST', 'target_system': 255, 'target_component': 0, 'seq': 8, 'mission_type': 1}
+Mission upload is successful
+MISSION COUNT = 6
+SAFE WAYPOINTS = [(38.1437, -76.52409), (38.141321, -76.526434), (38.141149, -76.526146), (38.143542, -76.523686), (38.14367, -76.523895), (38.143749, -76.524022)]
+  Got request for item 0
+  Sent item 0: (38.1437, -76.52409, 0.0)
+  Got request for item 1
+  Sent item 1: (38.141321, -76.526434, 0.0)
+  Got request for item 2
+  Sent item 2: (38.141149, -76.526146, 0.0)
+  Got request for item 3
+  Sent item 3: (38.143542, -76.523686, 0.0)
+  Got request for item 4
+  Sent item 4: (38.14367, -76.523895, 0.0)
+  Got request for item 5
+  Sent item 5: (38.143749, -76.524022, 0.0)
+Mission upload ack: MAV_MISSION_ACCEPTED
+Mission upload verified: 6 items on vehicle.
+  ACK 224: MAV_RESULT_ACCEPTED
+Starting new mission
+manual
+  ACK 176: MAV_RESULT_ACCEPTED
+auto
+  ACK 176: MAV_RESULT_ACCEPTED
+[ws] sonar thread started
+[ws] sonar connecting...
+[ws] connected  session_id=1
+[ws] start_ping  length=30000mm num_results=600  gain=-1
+error unpacking payload: unpack requires a buffer of 0 bytes
+msg_data: bytearray(b'BR\xc2\t\n\x00\x00\x00{\n  "session_id": 1,\n  "session_uptime": 566.175,\n  "session_devices": [\n    {\n      "url": "tcp://192.168.2.92:51200",\n      "options": {\n        "transducer_deg": -90,\n        "imu_deg": 0,\n        "doppler_enable": true\n      },\n      "device_id": 1,\n      "product_id": "os450",\n      "nickname": "Port-Omniscan",\n      "status": "CONNECTED"\n    },\n    {\n      "url": "tcp://192.168.2.93:51200",\n      "options": {\n        "transducer_deg": 90,\n        "imu_deg": 0,\n        "doppler_enable": true\n      },\n      "device_id": 2,\n      "product_id": "os450",\n      "nickname": "Starboard-Omniscan",\n      "status": "CONNECTED"\n    }\n  ],\n  "session_platform": {\n    "url": "ws://blueos.local:6040/v1/ws/mavlink?filter=ATTITUDE|GLOBAL_POSITION_INT|LOCAL_POSITION_NED|HOME_POSITION|HEARTBEAT|SCALED_PRESSURE2|DISTANCE_SENSOR|GPS_GLOBAL_ORIGIN|PARAM_VALUE|VFR_HUD|STATUSTEXT|AUTOPILOT_VERSION",\n    "protocol": "mavlink2rest",\n    "options": {\n      "system_id": 1,\n      "periodic_messages": [\n        {\n          "message_id": 0,\n          "frequency_hz": 1\n        },\n        {\n          "message_id": 30,\n          "frequency_hz": 30\n        },\n        {\n          "message_id": 33,\n          "frequency_hz": 30\n        },\n        {\n          "message_id": 32,\n          "frequency_hz": 30\n        },\n        {\n          "message_id": 137,\n          "frequency_hz": 3\n        },\n        {\n          "message_id": 74,\n          "frequency_hz": 3\n        },\n        {\n          "message_id": 49,\n          "frequency_hz": 1\n        },\n        {\n          "message_id": 148,\n          "frequency_hz": 0.016666666666666666\n        }\n      ]\n    },\n    "nickname": "Sim2Sea",\n    "model": "blue_boat",\n    "device_id": 3,\n    "status": "CONNECTED"\n  },\n  "session_clients": [\n    {\n      "protocol": "ws",\n      "address": "::ffff:192.168.2.1",\n      "port": 58677,\n      "write": true\n    },\n    {\n      "protocol": "ws",\n      "address": "::ffff:192.168.2.1",\n      "port": 53208,\n      "write": false\n    }\n  ],\n  "session_plan_name": "Sim2Sea+DualOmniscan",\n  "is_recording": false,\n  "sonarlink_version": "1.14.33-beta",\n  "os_hostname": "blueos",\n  "os_uptime": 1775.03,\n  "os_version": "#1415 SMP Fri Apr 30 15:50:57 BST 2021",\n  "os_platform": "linux",\n  "os_release": "5.10.33-v7l+",\n  "process_path": "/usr/bin/node",\n  "process_version": "v22.22.0",\n  "process_uptime": 1688.979658118,\n  "process_arch": "arm",\n  "timestamp": "2026-07-21T14:29:46.007Z",\n  "timestamp_timezone_offset": 0\n}j\x88'), header: (66, 82, 2498, 10, 0, 0)
+format: <, buf: bytearray(b'{\n  "session_id": 1,\n  "session_uptime": 566.175,\n  "session_devices": [\n    {\n      "url": "tcp://192.168.2.92:51200",\n      "options": {\n        "transducer_deg": -90,\n        "imu_deg": 0,\n        "doppler_enable": true\n      },\n      "device_id": 1,\n      "product_id": "os450",\n      "nickname": "Port-Omniscan",\n      "status": "CONNECTED"\n    },\n    {\n      "url": "tcp://192.168.2.93:51200",\n      "options": {\n        "transducer_deg": 90,\n        "imu_deg": 0,\n        "doppler_enable": true\n      },\n      "device_id": 2,\n      "product_id": "os450",\n      "nickname": "Starboard-Omniscan",\n      "status": "CONNECTED"\n    }\n  ],\n  "session_platform": {\n    "url": "ws://blueos.local:6040/v1/ws/mavlink?filter=ATTITUDE|GLOBAL_POSITION_INT|LOCAL_POSITION_NED|HOME_POSITION|HEARTBEAT|SCALED_PRESSURE2|DISTANCE_SENSOR|GPS_GLOBAL_ORIGIN|PARAM_VALUE|VFR_HUD|STATUSTEXT|AUTOPILOT_VERSION",\n    "protocol": "mavlink2rest",\n    "options": {\n      "system_id": 1,\n      "periodic_messages": [\n        {\n          "message_id": 0,\n          "frequency_hz": 1\n        },\n        {\n          "message_id": 30,\n          "frequency_hz": 30\n        },\n        {\n          "message_id": 33,\n          "frequency_hz": 30\n        },\n        {\n          "message_id": 32,\n          "frequency_hz": 30\n        },\n        {\n          "message_id": 137,\n          "frequency_hz": 3\n        },\n        {\n          "message_id": 74,\n          "frequency_hz": 3\n        },\n        {\n          "message_id": 49,\n          "frequency_hz": 1\n        },\n        {\n          "message_id": 148,\n          "frequency_hz": 0.016666666666666666\n        }\n      ]\n    },\n    "nickname": "Sim2Sea",\n    "model": "blue_boat",\n    "device_id": 3,\n    "status": "CONNECTED"\n  },\n  "session_clients": [\n    {\n      "protocol": "ws",\n      "address": "::ffff:192.168.2.1",\n      "port": 58677,\n      "write": true\n    },\n    {\n      "protocol": "ws",\n      "address": "::ffff:192.168.2.1",\n      "port": 53208,\n      "write": false\n    }\n  ],\n  "session_plan_name": "Sim2Sea+DualOmniscan",\n  "is_recording": false,\n  "sonarlink_version": "1.14.33-beta",\n  "os_hostname": "blueos",\n  "os_uptime": 1775.03,\n  "os_version": "#1415 SMP Fri Apr 30 15:50:57 BST 2021",\n  "os_platform": "linux",\n  "os_release": "5.10.33-v7l+",\n  "process_path": "/usr/bin/node",\n  "process_version": "v22.22.0",\n  "process_uptime": 1688.979658118,\n  "process_arch": "arm",\n  "timestamp": "2026-07-21T14:29:46.007Z",\n  "timestamp_timezone_offset": 0\n}')
+
+[detect] ch0 ping #9794: 3 object(s)  gps=(38.279286, -76.622943)  hdg=158.3deg
+    range~0.1m  size=92x30px  src=blob  contact=#11  latlon=(38.279285, -76.622943)
+    range~0.7m  size=39x33px  src=blob  contact=#11  latlon=(38.279280, -76.622943)
+    range~0.7m  size=27x30px  src=blob  contact=#11  latlon=(38.279280, -76.622943)
+[detect] ch1 ping #9794: 3 object(s)  gps=(38.279283, -76.622941)  hdg=159.8deg
+    range~0.4m  size=55x46px  src=blob  contact=#11  latlon=(38.279280, -76.622941)
+    range~0.4m  size=63x40px  src=blob  contact=#11  latlon=(38.279280, -76.622941)
+    range~0.7m  size=29x57px  src=blob  contact=#11  latlon=(38.279277, -76.622941)
+[detect] ch1 ping #9844: 2 object(s)  gps=(38.279277, -76.622937)  hdg=161.7deg
+    range~0.4m  size=61x84px  src=blob  contact=#11  latlon=(38.279274, -76.622937)
+    range~0.7m  size=30x57px  src=blob  contact=#11  latlon=(38.279271, -76.622937)
+[detect] ch0 ping #9844: 2 object(s)  gps=(38.279277, -76.622936)  hdg=161.8deg
+    range~0.7m  size=31x33px  src=blob  contact=#11  latlon=(38.279271, -76.622936)
+    range~0.7m  size=26x26px  src=blob  contact=#11  latlon=(38.279271, -76.622936)
+[detect] ch0 ping #9894: clear
+[detect] ch1 ping #9894: 3 object(s)  gps=(38.279275, -76.622933)  hdg=159.5deg
+    range~0.3m  size=57x49px  src=blob  contact=#11  latlon=(38.279272, -76.622933)
+    range~0.3m  size=63x35px  src=blob  contact=#11  latlon=(38.279272, -76.622933)
+    range~0.7m  size=29x57px  src=blob  contact=#11  latlon=(38.279269, -76.622933)
+[detect] ch1 ping #9944: 2 object(s)  gps=(38.279272, -76.622929)  hdg=159.8deg
+    range~0.3m  size=57x30px  src=blob  contact=#11  latlon=(38.279269, -76.622929)
+    range~0.7m  size=29x57px  src=blob  contact=#11  latlon=(38.279266, -76.622929)
+[detect] ch0 ping #9944: clear
+[detect] ch0 ping #9994: clear
+[detect] ch1 ping #9994: 1 object(s)  gps=(38.279269, -76.622926)  hdg=171.3deg
+    range~0.7m  size=28x54px  src=blob  contact=#11  latlon=(38.279263, -76.622926)
+[detect] ch1 ping #10044: clear
+[detect] ch0 ping #10044: 2 object(s)  gps=(38.279269, -76.622924)  hdg=170.8deg
+    range~0.6m  size=34x52px  src=blob  contact=#11  latlon=(38.279263, -76.622924)
+    range~0.5m  size=37x16px  src=blob  contact=#11  latlon=(38.279264, -76.622924)
+[detect] ch0 ping #10094: 2 object(s)  gps=(38.279269, -76.622923)  hdg=163.3deg
+    range~0.6m  size=32x27px  src=blob  contact=#11  latlon=(38.279263, -76.622923)
+    range~0.7m  size=23x27px  src=blob  contact=#11  latlon=(38.279262, -76.622923)
+[detect] ch1 ping #10094: clear
+[detect] ch1 ping #10144: 1 object(s)  gps=(38.279269, -76.622920)  hdg=145.0deg
+    range~13.1m  size=60x59px  src=blob  contact=#12  latlon=(38.279151, -76.622920)
+[detect] ch0 ping #10144: 2 object(s)  gps=(38.279269, -76.622920)  hdg=141.5deg
+    range~0.6m  size=30x25px  src=blob  contact=#11  latlon=(38.279263, -76.622920)
+    range~0.7m  size=22x27px  src=blob  contact=#11  latlon=(38.279262, -76.622920)
+[detect] ch1 ping #10194: 3 object(s)  gps=(38.279268, -76.622917)  hdg=128.2deg
+    range~13.0m  size=43x47px  src=blob  contact=#12  latlon=(38.279151, -76.622917)
+    range~12.7m  size=40x44px  src=blob  contact=#12  latlon=(38.279154, -76.622917)
+    range~13.4m  size=26x39px  src=blob  contact=#12  latlon=(38.279147, -76.622917)
+[detect] ch0 ping #10194: clear
+Traceback (most recent call last):
+  File "C:\Users\kbr_e\Downloads\blueBoat-main\blueBoat-main\main.py", line 350, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\kbr_e\Downloads\blueBoat-main\blueBoat-main\main.py", line 343, in main
+    sonar.run_second_mission(auto_reconnect=True,
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+                             missionEnd=int(m2_end) if m2_end else None)
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\kbr_e\Downloads\blueBoat-main\blueBoat-main\sonar_ws.py", line 305, in run_second_mission
+    msg = connection.recv_match(blocking=True, timeout=5)
+  File "C:\Users\kbr_e\Downloads\blueBoat-main\blueBoat-main\venv\Lib\site-packages\pymavlink\mavutil.py", line 526, in recv_match
+    self.select(timeout/2)
+    ~~~~~~~~~~~^^^^^^^^^^^
+  File "C:\Users\kbr_e\Downloads\blueBoat-main\blueBoat-main\venv\Lib\site-packages\pymavlink\mavutil.py", line 346, in select
+    (rin, win, xin) = select.select([self.fd], [], [], timeout)
+                      ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt
+(venv) PS C:\Users\kbr_e\Downloads\blueBoat-main\blueBoat-main> ^C
+(venv) PS C:\Users\kbr_e\Downloads\blueBoat-main\blueBoat-main> ^C
+(venv) PS C:\Users\kbr_e\Downloads\blueBoat-main\blueBoat-main> python main.py^C
+(venv) PS C:\Users\kbr_e\Downloads\blueBoat-main\blueBoat-main> python main.py
+[main] sonar    →  192.168.2.2:7077
+[main] mavlink  →  192.168.2.2:6040
+[ws] sonar thread started
+[ws] sonar connecting...
+[mavlink] connected  ws://192.168.2.2:6040/v1/ws/mavlink
+[ws] connected  session_id=1
+[ws] start_ping  length=30000mm num_results=600  gain=-1
+error unpacking payload: unpack requires a buffer of 0 bytes
+msg_data: bytearray(b'BR\xc2\t\n\x00\x00\x00{\n  "session_id": 1,\n  "session_uptime": 775.225,\n  "session_devices": [\n    {\n      "url": "tcp://192.168.2.92:51200",\n      "options": {\n        "transducer_deg": -90,\n        "imu_deg": 0,\n        "doppler_enable": true\n      },\n      "device_id": 1,\n      "product_id": "os450",\n      "nickname": "Port-Omniscan",\n      "status": "CONNECTED"\n    },\n    {\n      "url": "tcp://192.168.2.93:51200",\n      "options": {\n        "transducer_deg": 90,\n        "imu_deg": 0,\n        "doppler_enable": true\n      },\n      "device_id": 2,\n      "product_id": "os450",\n      "nickname": "Starboard-Omniscan",\n      "status": "CONNECTED"\n    }\n  ],\n  "session_platform": {\n    "url": "ws://blueos.local:6040/v1/ws/mavlink?filter=ATTITUDE|GLOBAL_POSITION_INT|LOCAL_POSITION_NED|HOME_POSITION|HEARTBEAT|SCALED_PRESSURE2|DISTANCE_SENSOR|GPS_GLOBAL_ORIGIN|PARAM_VALUE|VFR_HUD|STATUSTEXT|AUTOPILOT_VERSION",\n    "protocol": "mavlink2rest",\n    "options": {\n      "system_id": 1,\n      "periodic_messages": [\n        {\n          "message_id": 0,\n          "frequency_hz": 1\n        },\n        {\n          "message_id": 30,\n          "frequency_hz": 30\n        },\n        {\n          "message_id": 33,\n          "frequency_hz": 30\n        },\n        {\n          "message_id": 32,\n          "frequency_hz": 30\n        },\n        {\n          "message_id": 137,\n          "frequency_hz": 3\n        },\n        {\n          "message_id": 74,\n          "frequency_hz": 3\n        },\n        {\n          "message_id": 49,\n          "frequency_hz": 1\n        },\n        {\n          "message_id": 148,\n          "frequency_hz": 0.016666666666666666\n        }\n      ]\n    },\n    "nickname": "Sim2Sea",\n    "model": "blue_boat",\n    "device_id": 3,\n    "status": "CONNECTED"\n  },\n  "session_clients": [\n    {\n      "protocol": "ws",\n      "address": "::ffff:192.168.2.1",\n      "port": 58677,\n      "write": true\n    },\n    {\n      "protocol": "ws",\n      "address": "::ffff:192.168.2.1",\n      "port": 64246,\n      "write": false\n    }\n  ],\n  "session_plan_name": "Sim2Sea+DualOmniscan",\n  "is_recording": false,\n  "sonarlink_version": "1.14.33-beta",\n  "os_hostname": "blueos",\n  "os_uptime": 1984.09,\n  "os_version": "#1415 SMP Fri Apr 30 15:50:57 BST 2021",\n  "os_platform": "linux",\n  "os_release": "5.10.33-v7l+",\n  "process_path": "/usr/bin/node",\n  "process_version": "v22.22.0",\n  "process_uptime": 1898.030343068,\n  "process_arch": "arm",\n  "timestamp": "2026-07-21T14:33:15.057Z",\n  "timestamp_timezone_offset": 0\n}X\x88'), header: (66, 82, 2498, 10, 0, 0)
+format: <, buf: bytearray(b'{\n  "session_id": 1,\n  "session_uptime": 775.225,\n  "session_devices": [\n    {\n      "url": "tcp://192.168.2.92:51200",\n      "options": {\n        "transducer_deg": -90,\n        "imu_deg": 0,\n        "doppler_enable": true\n      },\n      "device_id": 1,\n      "product_id": "os450",\n      "nickname": "Port-Omniscan",\n      "status": "CONNECTED"\n    },\n    {\n      "url": "tcp://192.168.2.93:51200",\n      "options": {\n        "transducer_deg": 90,\n        "imu_deg": 0,\n        "doppler_enable": true\n      },\n      "device_id": 2,\n      "product_id": "os450",\n      "nickname": "Starboard-Omniscan",\n      "status": "CONNECTED"\n    }\n  ],\n  "session_platform": {\n    "url": "ws://blueos.local:6040/v1/ws/mavlink?filter=ATTITUDE|GLOBAL_POSITION_INT|LOCAL_POSITION_NED|HOME_POSITION|HEARTBEAT|SCALED_PRESSURE2|DISTANCE_SENSOR|GPS_GLOBAL_ORIGIN|PARAM_VALUE|VFR_HUD|STATUSTEXT|AUTOPILOT_VERSION",\n    "protocol": "mavlink2rest",\n    "options": {\n      "system_id": 1,\n      "periodic_messages": [\n        {\n          "message_id": 0,\n          "frequency_hz": 1\n        },\n        {\n          "message_id": 30,\n          "frequency_hz": 30\n        },\n        {\n          "message_id": 33,\n          "frequency_hz": 30\n        },\n        {\n          "message_id": 32,\n          "frequency_hz": 30\n        },\n        {\n          "message_id": 137,\n          "frequency_hz": 3\n        },\n        {\n          "message_id": 74,\n          "frequency_hz": 3\n        },\n        {\n          "message_id": 49,\n          "frequency_hz": 1\n        },\n        {\n          "message_id": 148,\n          "frequency_hz": 0.016666666666666666\n        }\n      ]\n    },\n    "nickname": "Sim2Sea",\n    "model": "blue_boat",\n    "device_id": 3,\n    "status": "CONNECTED"\n  },\n  "session_clients": [\n    {\n      "protocol": "ws",\n      "address": "::ffff:192.168.2.1",\n      "port": 58677,\n      "write": true\n    },\n    {\n      "protocol": "ws",\n      "address": "::ffff:192.168.2.1",\n      "port": 64246,\n      "write": false\n    }\n  ],\n  "session_plan_name": "Sim2Sea+DualOmniscan",\n  "is_recording": false,\n  "sonarlink_version": "1.14.33-beta",\n  "os_hostname": "blueos",\n  "os_uptime": 1984.09,\n  "os_version": "#1415 SMP Fri Apr 30 15:50:57 BST 2021",\n  "os_platform": "linux",\n  "os_release": "5.10.33-v7l+",\n  "process_path": "/usr/bin/node",\n  "process_version": "v22.22.0",\n  "process_uptime": 1898.030343068,\n  "process_arch": "arm",\n  "timestamp": "2026-07-21T14:33:15.057Z",\n  "timestamp_timezone_offset": 0\n}')
+
+Reached waypoint: 1
+[detect] ch1 ping #13742: clear
+[detect] ch0 ping #13742: clear
+Reached waypoint: 2
+[detect] ch1 ping #13792: clear
+[detect] ch0 ping #13792: clear
+[detect] ch1 ping #13842: clear
+[detect] ch0 ping #13842: clear
+[detect] ch1 ping #13892: 2 object(s)  gps=(38.279435, -76.622897)  hdg=273.9deg
+    range~0.4m  size=54x54px  src=blob  contact=#1  latlon=(38.279431, -76.622897)
+    range~0.4m  size=40x30px  src=blob  contact=#1  latlon=(38.279431, -76.622897)
+[detect] ch0 ping #13892: clear
+[detect] ch1 ping #13942: 2 object(s)  gps=(38.279434, -76.622911)  hdg=272.7deg
+    range~0.5m  size=45x54px  src=blob  contact=#1  latlon=(38.279430, -76.622911)
+    range~0.7m  size=27x19px  src=blob  contact=#1  latlon=(38.279428, -76.622911)
+[detect] ch0 ping #13942: clear
+[detect] ch1 ping #13992: 1 object(s)  gps=(38.279434, -76.622941)  hdg=279.0deg
+    range~0.4m  size=52x103px  src=blob  contact=#2  latlon=(38.279430, -76.622941)
+[detect] ch0 ping #13992: clear
+[detect] ch1 ping #14042: 2 object(s)  gps=(38.279435, -76.622968)  hdg=281.2deg
+    range~0.5m  size=50x104px  src=blob  contact=#2  latlon=(38.279431, -76.622968)
+    range~0.5m  size=34x28px  src=blob  contact=#2  latlon=(38.279431, -76.622968)
+[detect] ch0 ping #14042: clear
+[detect] ch1 ping #14092: 2 object(s)  gps=(38.279437, -76.622997)  hdg=282.6deg
+    range~0.5m  size=51x104px  src=blob  contact=#3  latlon=(38.279433, -76.622997)
+    range~0.5m  size=35x29px  src=blob  contact=#3  latlon=(38.279432, -76.622997)
+[detect] ch0 ping #14092: 1 object(s)  gps=(38.279437, -76.623001)  hdg=284.0deg
+    range~12.9m  size=34x39px  src=blob  contact=#4  latlon=(38.279320, -76.623001)
+[detect] ch1 ping #14142: 3 object(s)  gps=(38.279438, -76.623027)  hdg=284.8deg
+    range~0.5m  size=52x104px  src=blob  contact=#3  latlon=(38.279434, -76.623027)
+    range~0.5m  size=35x29px  src=blob  contact=#3  latlon=(38.279434, -76.623027)
+    range~0.5m  size=38x23px  src=blob  contact=#3  latlon=(38.279434, -76.623027)
+[detect] ch0 ping #14142: 2 object(s)  gps=(38.279439, -76.623030)  hdg=286.5deg
+    range~12.9m  size=58x42px  src=blob  contact=#4  latlon=(38.279322, -76.623030)
+    range~10.7m  size=78x18px  src=blob  contact=#4  latlon=(38.279343, -76.623030)
+Reached waypoint: 3
+[detect] ch1 ping #14192: 3 object(s)  gps=(38.279440, -76.623042)  hdg=312.2deg
+    range~0.5m  size=55x105px  src=blob  contact=#3  latlon=(38.279436, -76.623042)
+    range~0.6m  size=34x32px  src=blob  contact=#3  latlon=(38.279435, -76.623042)
+    range~0.5m  size=39x23px  src=blob  contact=#3  latlon=(38.279436, -76.623042)
+[detect] ch0 ping #14192: 1 object(s)  gps=(38.279440, -76.623042)  hdg=313.0deg
+    range~12.9m  size=60x42px  src=blob  contact=#4  latlon=(38.279324, -76.623042)
+[detect] ch1 ping #14242: 1 object(s)  gps=(38.279441, -76.623042)  hdg=259.2deg
+    range~0.5m  size=55x101px  src=blob  contact=#3  latlon=(38.279437, -76.623042)
+[detect] ch0 ping #14242: 3 object(s)  gps=(38.279441, -76.623041)  hdg=248.0deg
+    range~12.6m  size=89x22px  src=blob  contact=#4  latlon=(38.279328, -76.623041)
+    range~12.0m  size=70x20px  src=blob  contact=#4  latlon=(38.279334, -76.623041)
+    range~11.2m  size=52x23px  src=blob  contact=#4  latlon=(38.279340, -76.623041)
+[detect] ch1 ping #14292: 2 object(s)  gps=(38.279436, -76.623041)  hdg=177.9deg
+    range~0.5m  size=51x98px  src=blob  contact=#3  latlon=(38.279432, -76.623041)
+    range~0.7m  size=34x39px  src=blob  contact=#3  latlon=(38.279430, -76.623041)
+[detect] ch0 ping #14292: clear
+[detect] ch1 ping #14342: 2 object(s)  gps=(38.279386, -76.623039)  hdg=184.7deg
+    range~0.6m  size=45x97px  src=blob  contact=#5  latlon=(38.279380, -76.623039)
+    range~0.5m  size=52x67px  src=blob  contact=#5  latlon=(38.279381, -76.623039)
+[detect] ch0 ping #14342: clear
+[detect] ch1 ping #14392: 2 object(s)  gps=(38.279334, -76.623043)  hdg=182.2deg
+    range~0.5m  size=52x117px  src=blob  contact=#4  latlon=(38.279330, -76.623043)
+    range~0.6m  size=41x50px  src=blob  contact=#4  latlon=(38.279328, -76.623043)
+[detect] ch0 ping #14392: 1 object(s)  gps=(38.279329, -76.623043)  hdg=181.0deg
+    range~0.5m  size=35x43px  src=blob  contact=#4  latlon=(38.279324, -76.623043)
+Reached waypoint: 4
+Mission 1 complete (last waypoint reached)!
+[ws] closed (code=None)
+[ws] sonar thread exiting (stop or no reconnect)
+
+[main] mission complete: 5 unique contact(s)
+    #01  (38.279430, -76.622904)  range~0.4m  blob  seen 4x
+    #02  (38.279430, -76.622959)  range~0.5m  blob  seen 3x
+    #03  (38.279434, -76.623029)  range~0.5m  blob  seen 11x
+    #04  (38.279330, -76.623035)  range~0.6m  blob  seen 10x
+    #05  (38.279383, -76.623039)  range~0.5m  blob  seen 2x
+[main] hand off log.to_records() / to_geojson() / to_csv() to your revisit planner
+[main] revisit filter: min_hits=1 largest=10 -> kept 5 of 5 contact(s)
+[main] sending 5 contact(s) to revisit planner (largest 10 by area, hits >= 1)
+[planner] wrote 5 coord(s) to contacts_coords.py for the revisit script (it does: from contacts_coords import coords)
+[main] launching uploader: python mavlink_nopipeline.py
+Heartbeat from system (system 0 component 0)
+MISSION COUNT = 5
+SAFE WAYPOINTS = [(38.2794299, -76.6229041), (38.2794305, -76.6229591), (38.279434, -76.6230291), (38.2793296, -76.6230351), (38.2793832, -76.6230388)]
+  Got request for item 0
+  Sent item 0: (38.2794299, -76.6229041, 0.0)
+  Got request for item 1
+  Sent item 1: (38.2794305, -76.6229591, 0.0)
+  Got request for item 2
+  Sent item 2: (38.279434, -76.6230291, 0.0)
+  Got request for item 3
+  Sent item 3: (38.2793296, -76.6230351, 0.0)
+  Got request for item 4
+  Sent item 4: (38.2793832, -76.6230388, 0.0)
+Mission upload accepted.
+  ACK 224: MAV_RESULT_ACCEPTED
+Starting new mission
+manual
+auto
+[ws] sonar thread started
+[ws] sonar connecting...
+[ws] connected  session_id=1
+[ws] start_ping  length=30000mm num_results=600  gain=-1
+error unpacking payload: unpack requires a buffer of 0 bytes
+msg_data: bytearray(b'BR\xc2\t\n\x00\x00\x00{\n  "session_id": 1,\n  "session_uptime": 852.591,\n  "session_devices": [\n    {\n      "url": "tcp://192.168.2.92:51200",\n      "options": {\n        "transducer_deg": -90,\n        "imu_deg": 0,\n        "doppler_enable": true\n      },\n      "device_id": 1,\n      "product_id": "os450",\n      "nickname": "Port-Omniscan",\n      "status": "CONNECTED"\n    },\n    {\n      "url": "tcp://192.168.2.93:51200",\n      "options": {\n        "transducer_deg": 90,\n        "imu_deg": 0,\n        "doppler_enable": true\n      },\n      "device_id": 2,\n      "product_id": "os450",\n      "nickname": "Starboard-Omniscan",\n      "status": "CONNECTED"\n    }\n  ],\n  "session_platform": {\n    "url": "ws://blueos.local:6040/v1/ws/mavlink?filter=ATTITUDE|GLOBAL_POSITION_INT|LOCAL_POSITION_NED|HOME_POSITION|HEARTBEAT|SCALED_PRESSURE2|DISTANCE_SENSOR|GPS_GLOBAL_ORIGIN|PARAM_VALUE|VFR_HUD|STATUSTEXT|AUTOPILOT_VERSION",\n    "protocol": "mavlink2rest",\n    "options": {\n      "system_id": 1,\n      "periodic_messages": [\n        {\n          "message_id": 0,\n          "frequency_hz": 1\n        },\n        {\n          "message_id": 30,\n          "frequency_hz": 30\n        },\n        {\n          "message_id": 33,\n          "frequency_hz": 30\n        },\n        {\n          "message_id": 32,\n          "frequency_hz": 30\n        },\n        {\n          "message_id": 137,\n          "frequency_hz": 3\n        },\n        {\n          "message_id": 74,\n          "frequency_hz": 3\n        },\n        {\n          "message_id": 49,\n          "frequency_hz": 1\n        },\n        {\n          "message_id": 148,\n          "frequency_hz": 0.016666666666666666\n        }\n      ]\n    },\n    "nickname": "Sim2Sea",\n    "model": "blue_boat",\n    "device_id": 3,\n    "status": "CONNECTED"\n  },\n  "session_clients": [\n    {\n      "protocol": "ws",\n      "address": "::ffff:192.168.2.1",\n      "port": 58677,\n      "write": true\n    },\n    {\n      "protocol": "ws",\n      "address": "::ffff:192.168.2.1",\n      "port": 61349,\n      "write": false\n    }\n  ],\n  "session_plan_name": "Sim2Sea+DualOmniscan",\n  "is_recording": false,\n  "sonarlink_version": "1.14.33-beta",\n  "os_hostname": "blueos",\n  "os_uptime": 2061.45,\n  "os_version": "#1415 SMP Fri Apr 30 15:50:57 BST 2021",\n  "os_platform": "linux",\n  "os_release": "5.10.33-v7l+",\n  "process_path": "/usr/bin/node",\n  "process_version": "v22.22.0",\n  "process_uptime": 1975.394500392,\n  "process_arch": "arm",\n  "timestamp": "2026-07-21T14:34:32.422Z",\n  "timestamp_timezone_offset": 0\n}N\x88'), header: (66, 82, 2498, 10, 0, 0)
+format: <, buf: bytearray(b'{\n  "session_id": 1,\n  "session_uptime": 852.591,\n  "session_devices": [\n    {\n      "url": "tcp://192.168.2.92:51200",\n      "options": {\n        "transducer_deg": -90,\n        "imu_deg": 0,\n        "doppler_enable": true\n      },\n      "device_id": 1,\n      "product_id": "os450",\n      "nickname": "Port-Omniscan",\n      "status": "CONNECTED"\n    },\n    {\n      "url": "tcp://192.168.2.93:51200",\n      "options": {\n        "transducer_deg": 90,\n        "imu_deg": 0,\n        "doppler_enable": true\n      },\n      "device_id": 2,\n      "product_id": "os450",\n      "nickname": "Starboard-Omniscan",\n      "status": "CONNECTED"\n    }\n  ],\n  "session_platform": {\n    "url": "ws://blueos.local:6040/v1/ws/mavlink?filter=ATTITUDE|GLOBAL_POSITION_INT|LOCAL_POSITION_NED|HOME_POSITION|HEARTBEAT|SCALED_PRESSURE2|DISTANCE_SENSOR|GPS_GLOBAL_ORIGIN|PARAM_VALUE|VFR_HUD|STATUSTEXT|AUTOPILOT_VERSION",\n    "protocol": "mavlink2rest",\n    "options": {\n      "system_id": 1,\n      "periodic_messages": [\n        {\n          "message_id": 0,\n          "frequency_hz": 1\n        },\n        {\n          "message_id": 30,\n          "frequency_hz": 30\n        },\n        {\n          "message_id": 33,\n          "frequency_hz": 30\n        },\n        {\n          "message_id": 32,\n          "frequency_hz": 30\n        },\n        {\n          "message_id": 137,\n          "frequency_hz": 3\n        },\n        {\n          "message_id": 74,\n          "frequency_hz": 3\n        },\n        {\n          "message_id": 49,\n          "frequency_hz": 1\n        },\n        {\n          "message_id": 148,\n          "frequency_hz": 0.016666666666666666\n        }\n      ]\n    },\n    "nickname": "Sim2Sea",\n    "model": "blue_boat",\n    "device_id": 3,\n    "status": "CONNECTED"\n  },\n  "session_clients": [\n    {\n      "protocol": "ws",\n      "address": "::ffff:192.168.2.1",\n      "port": 58677,\n      "write": true\n    },\n    {\n      "protocol": "ws",\n      "address": "::ffff:192.168.2.1",\n      "port": 61349,\n      "write": false\n    }\n  ],\n  "session_plan_name": "Sim2Sea+DualOmniscan",\n  "is_recording": false,\n  "sonarlink_version": "1.14.33-beta",\n  "os_hostname": "blueos",\n  "os_uptime": 2061.45,\n  "os_version": "#1415 SMP Fri Apr 30 15:50:57 BST 2021",\n  "os_platform": "linux",\n  "os_release": "5.10.33-v7l+",\n  "process_path": "/usr/bin/node",\n  "process_version": "v22.22.0",\n  "process_uptime": 1975.394500392,\n  "process_arch": "arm",\n  "timestamp": "2026-07-21T14:34:32.422Z",\n  "timestamp_timezone_offset": 0\n}')
+
+[detect] ch1 ping #14920: 1 object(s)  gps=(38.279314, -76.623035)  hdg=20.8deg
+    range~0.5m  size=53x147px  src=blob  contact=#4  latlon=(38.279309, -76.623035)
+[detect] ch0 ping #14921: clear
+[detect] ch1 ping #14970: 1 object(s)  gps=(38.279355, -76.623011)  hdg=22.2deg
+    range~0.5m  size=53x146px  src=blob  contact=#6  latlon=(38.279351, -76.623011)
+[detect] ch0 ping #14971: 1 object(s)  gps=(38.279363, -76.623006)  hdg=22.5deg
+    range~12.5m  size=78x16px  src=blob  contact=#7  latlon=(38.279251, -76.623006)
+[detect] ch1 ping #15020: 1 object(s)  gps=(38.279387, -76.622991)  hdg=26.2deg
+    range~0.4m  size=59x144px  src=blob  contact=#8  latlon=(38.279383, -76.622991)
+[detect] ch0 ping #15021: 1 object(s)  gps=(38.279387, -76.622991)  hdg=26.7deg
+    range~12.8m  size=45x21px  src=blob  contact=#7  latlon=(38.279272, -76.622991)
+[detect] ch1 ping #15070: clear
+[detect] ch0 ping #15071: clear
+[detect] ch1 ping #15120: clear
+[detect] ch0 ping #15121: clear
+[detect] ch1 ping #15170: clear
+[detect] ch0 ping #15171: clear
+Reached waypoint: 1
+Id of most recent image: 8
+[detect] ch1 ping #15220: clear
+[detect] ch0 ping #15221: clear
+[detect] ch1 ping #15270: 1 object(s)  gps=(38.279432, -76.622962)  hdg=273.8deg
+    range~0.6m  size=35x19px  src=blob  contact=#2  latlon=(38.279426, -76.622962)
+[detect] ch0 ping #15271: clear
+[detect] ch1 ping #15320: clear
+[detect] ch0 ping #15321: clear
+[detect] ch1 ping #15370: clear
+[detect] ch0 ping #15371: clear
+Reached waypoint: 2
+Id of most recent image: 8
+Reached waypoint: 3
+Id of most recent image: 8
+Reached waypoint: 4
+Id of most recent image: 8
+manual
+second mission complete!
+[(0, 0), (1, 8), (2, 8), (3, 8), (4, 8)]
+[ws] closed (code=None)
+[ws] sonar thread exiting (stop or no reconnect)
+(venv) PS C:\Users\kbr_e\Downloads\blueBoat-main\blueBoat-main> auto
+  ACK 20: MAV_RESULT_ACCEPTED
