@@ -44,6 +44,7 @@ from contacts_coords import coords
 from contact_export import ContactExporter
 from sonar_display import colorize
 from api import api_upload
+import shared_states
 
 
 HOST     = os.environ.get("HOST", "192.168.2.2")
@@ -109,6 +110,9 @@ parser     = OmniScanParser()
 detectors  = {}               # channel_number -> WaterfallDetector
 dashboards = {}               # channel_number -> SonarDashboard
 log        = DetectionLog(merge_radius_m=3.0)   # de-duplicated mission contacts
+exporter   = ContactExporter("sonar_web/data")  # local snapshots + map uploads
+revisit_ids = set()           # contact ids the post-mission-1 filter selected;
+                              # mission 2 uploads ONLY these to the map
 
 
 # ---- georeferencing --------------------------------------------------------
@@ -145,7 +149,8 @@ def _dashboard(channel):
     d = dashboards.get(channel)
     if d is None:
         d = SonarDashboard(title=_window_name(channel), palette=PALETTE,
-                           source_label=f"{HOST}:{PORT}  ch{channel}", mode="LIVE")
+                           source_label=f"{HOST}:{PORT}  ch{channel}", mode="LIVE",
+                           exporter=exporter)
         dashboards[channel] = d
     return d
 
@@ -177,6 +182,17 @@ def handle_detection(objects, ping, image):
                         score=obj.get("score", 0.0),
                         ping_number=ping["ping_number"])
             obj["cid"] = c["id"]
+
+            # Mission 2 only, and ONLY for contacts the post-mission-1 filter
+            # selected (revisit_ids) — the boat drives back to these, so we
+            # upload each one with its fresh mission-2 crop as it's re-detected.
+            # Background thread + per-id dedup: never stalls the sonar, never
+            # double-sends. (mission 1 = survey, no upload.)
+            if image is not None and not shared_states.mission_1_png \
+                    and c["id"] in revisit_ids \
+                    and all(k in obj for k in ("x", "y", "w", "h")):
+                exporter.upload_contact(image, c["id"], latlon[0], latlon[1],
+                                        (obj["x"], obj["y"], obj["w"], obj["h"]))
 
     if image is not None:
         draw(objects, ping, image)
@@ -280,8 +296,13 @@ def main():
                   f"(import with: from {os.path.splitext(os.path.basename(path))[0]} "
                   "import coords)")
         # The revisit contacts: largest N, dropping one-ping flickers.
+        # to_coords returns (lat, lon, id) triples.
         revisit = (log.to_coords(largest=PLANNER_LARGEST, min_hits=PLANNER_MIN_HITS)
                    if len(log) else [])
+        # These are the ONLY contacts mission 2 uploads to the map — the boat
+        # revisits them and re-detects them; handle_detection gates on this set.
+        revisit_ids.clear()
+        revisit_ids.update(cid for _, _, cid in revisit)
         print(f"[main] revisit filter: min_hits={PLANNER_MIN_HITS} "
               f"largest={PLANNER_LARGEST} -> kept {len(revisit)} of "
               f"{len(log)} contact(s)")
@@ -334,6 +355,14 @@ def main():
         # one-shot, so without this the second mission can't auto-stop the sonar.
         mav.reset_mission_tracking()
 
+        # Mission 1's sonar thread owned these display windows; that thread
+        # is dead now. cv2 windows are bound to the thread that created them,
+        # so mission 2's NEW sonar thread can't repaint them — the picture
+        # would freeze even though sonar data is flowing fine underneath.
+        # Destroying them here means the first imshow() in mission 2 creates
+        # fresh windows the new thread actually owns.
+        cv2.destroyAllWindows()
+
         # MISSION2_END: last waypoint seq of mission 2, for firmware/SITL that
         # never streams MISSION_CURRENT.mission_state. Unset -> mission_state
         # is the completion signal (works on the real boat).
@@ -342,7 +371,7 @@ def main():
         # call sonar again for second mission; returns when mission 2 completes
         sonar.run_second_mission(auto_reconnect=True,
                                  missionEnd=int(m2_end) if m2_end else None)
-            
+
         cv2.destroyAllWindows()
 
 

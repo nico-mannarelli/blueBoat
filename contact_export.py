@@ -1,13 +1,19 @@
 """
-contact_export.py — per-contact export: local web-map files + edge upload.
+contact_export.py — per-contact export + real-time map upload.
 
-DATA IN:  one contact + the waterfall frame per new detection
-          (sonar_dashboard.render calls export() once per new cid)
-DATA OUT: local disk — snapshot PNG under <out_dir>/images/
-          network (mission 2 only) — low_res_img (224x224 classifier crop) +
-          high_res_img (colorized snapshot) + bbox + lat/lon POSTed to the
-          CommandCenter map endpoint (CONTACT_URL), which classifies the
-          low-res crop and draws the label + box on the high-res image
+Two independent jobs:
+  export()          local record: snapshot PNG under <out_dir>/images/ +
+                    contacts.json. Called by the dashboard per contact.
+  upload_contact()  the mission-2 MAP UPLOAD. Called at DETECTION time (from
+                    main.handle_detection) so the crop is cut from the exact
+                    frame the contact was detected in. Deduped per contact id.
+                    POSTs low_res_img (224x224 classifier crop) + high_res_img
+                    (colorized snapshot) + bbox + lat/lon to the CommandCenter
+                    map endpoint (CONTACT_URL), which classifies the low-res
+                    crop and draws the label + box on the high-res image.
+
+Uploads run on a background thread so the sonar pipeline NEVER waits on the
+network; a dead map server costs markers, not the mission.
 """
 
 import json
@@ -24,13 +30,10 @@ from crop_saver import make_crop
 
 import shared_states
 
-# ---- real-time contact upload (mission 2) -----------------------------------
-# Uploads run on a background thread so the sonar pipeline NEVER waits on
-# the network; a dead edge server costs markers, not the mission (api.py
-# batch upload afterwards is the manual backup).
+# ---- map upload config ------------------------------------------------------
 CONTACT_URL        = "http://10.107.30.63:30932/marker/boat"  # CommandCenter map endpoint
 CONTACT_TIMEOUT_S  = 15.0     # classify + forward on the server side
-CLASSIFY_MISSION_2_ONLY = True   # False = also send mission-1 survey contacts
+CROP_MARGIN        = 40       # px of context around the contact in the snapshot
 
 
 class ContactExporter:
@@ -43,6 +46,7 @@ class ContactExporter:
         self._clf_q = queue.Queue()
         self._clf_thread = None
         self._clf_failures = 0
+        self._uploaded = set()   # contact ids already uploaded (dedup)
         if not os.path.exists(self.json_path):
             self._write({"updated": time.time(), "contacts": []})
 
@@ -59,11 +63,12 @@ class ContactExporter:
             json.dump(data, f, indent=2)
         os.replace(tmp, self.json_path)   # atomic, avoids partial reads
 
-    def export(self, contact, gray, palette="blue", crop_margin=40,
+    def export(self, contact, gray, palette="blue", crop_margin=CROP_MARGIN,
                contrast=1.12, gamma=0.85, brightness=0.0):
-        """IN: one contact dict + the waterfall frame it was detected in.
-        OUT: snapshot PNG + contacts.json record on local disk; in mission 2
-        also queues crop + snapshot + bbox for upload to the edge server."""
+        """Local record only: save a colorized snapshot PNG under images/ and
+        upsert the contact into contacts.json. Does NOT upload — the map
+        upload is upload_contact(), fired at detection time. Called by the
+        dashboard once per contact."""
         cid = contact["id"]
         if shared_states.mission_1_png:
             img_name = f"{cid:06d}.png"
@@ -74,7 +79,6 @@ class ContactExporter:
         disp = colorize(gray, palette=palette, contrast=contrast,
                          gamma=gamma, brightness=brightness)
 
-        sx0 = sy0 = 0    # snapshot crop origin, for bbox-in-snapshot coords
         if all(k in contact for k in ("x", "y", "w", "h")):
             h_img, w_img = disp.shape[:2]
             x0 = max(0, int(contact["x"] - crop_margin))
@@ -83,7 +87,6 @@ class ContactExporter:
             y1 = min(h_img, int(contact["y"] + contact["h"] + crop_margin))
             if x1 > x0 and y1 > y0:
                 disp = disp[y0:y1, x0:x1]
-                sx0, sy0 = x0, y0
 
         cv2.imwrite(img_path, disp)
 
@@ -105,61 +108,76 @@ class ContactExporter:
             data["updated"] = time.time()
             self._write(data)
 
-        # mission 2: hand the uploader the classifier-format crop (raw gray,
-        # same prep the library was built from) + the snapshot path + the
-        # detection box in snapshot coords (for box+label drawing server-side)
-        in_mission_2 = not shared_states.mission_1_png
-        if (in_mission_2 or not CLASSIFY_MISSION_2_ONLY) \
-                and all(k in contact for k in ("x", "y", "w", "h")):
-            crop = make_crop(gray, (contact["x"], contact["y"],
-                                    contact["w"], contact["h"]))
-            if crop is not None:
-                ok, buf = cv2.imencode(".png", crop)
-                if ok:
-                    bbox = (int(contact["x"]) - sx0, int(contact["y"]) - sy0,
-                            int(contact["w"]), int(contact["h"]))
-                    self._enqueue(buf.tobytes(), cid, contact["lat"],
-                                  contact["lon"], img_path,
-                                  "2" if in_mission_2 else "1", bbox)
-
         return record
 
-    # ---- background classify + marker uploader ------------------------------
+    # ---- real-time map upload (mission 2, at detection time) ----------------
 
-    def _enqueue(self, crop_png, cid, lat, lon, img_path, mission, bbox):
+    def upload_contact(self, gray, cid, lat, lon, box):
+        """Cut the classifier crop + a colorized snapshot from `gray` (the
+        exact frame the contact was detected in) and queue a map upload.
+        `box` = (x, y, w, h) in `gray` pixel coords. One upload per cid.
+
+        Called from main.handle_detection during mission 2, NOT from the
+        dashboard — so the crop always matches the detection frame."""
+        if cid in self._uploaded:
+            return
+        x, y, w, h = (int(v) for v in box)
+
+        # low_res_img: the 224x224 gray classifier crop (library format)
+        crop = make_crop(gray, (x, y, w, h))
+        if crop is None:
+            return
+        ok, crop_buf = cv2.imencode(".png", crop)
+        if not ok:
+            return
+
+        # high_res_img: colorized display snapshot cropped around the contact
+        disp = colorize(gray, palette="blue")
+        h_img, w_img = disp.shape[:2]
+        x0, y0 = max(0, x - CROP_MARGIN), max(0, y - CROP_MARGIN)
+        x1, y1 = min(w_img, x + w + CROP_MARGIN), min(h_img, y + h + CROP_MARGIN)
+        sx0, sy0 = 0, 0
+        if x1 > x0 and y1 > y0:
+            disp = disp[y0:y1, x0:x1]
+            sx0, sy0 = x0, y0
+        ok2, snap_buf = cv2.imencode(".png", disp)
+        if not ok2:
+            return
+
+        bbox = (x - sx0, y - sy0, w, h)   # detection box in snapshot coords
+        self._uploaded.add(cid)
+        self._enqueue(crop_buf.tobytes(), snap_buf.tobytes(),
+                      cid, lat, lon, bbox)
+
+    def _enqueue(self, crop_png, snap_png, cid, lat, lon, bbox):
         """Queue one contact for upload; starts the worker thread on first use."""
         if self._clf_thread is None:
             self._clf_thread = threading.Thread(
-                target=self._worker, daemon=True, name="classify-upload")
+                target=self._worker, daemon=True, name="map-upload")
             self._clf_thread.start()
-        self._clf_q.put((crop_png, cid, lat, lon, img_path, mission, bbox))
+        self._clf_q.put((crop_png, snap_png, cid, lat, lon, bbox))
 
     def _worker(self):
-        """Forever: pop a contact off the queue, POST it to the CommandCenter
-        map endpoint (CONTACT_URL). The server classifies low_res_img and
-        draws the label + bbox on high_res_img for the map.
-            low_res_img  = 224x224 gray classifier crop
-            high_res_img = colorized display snapshot
-            bbox         = "[x,y,w,h]" in high_res_img pixel coords
-        """
+        """Forever: pop a contact off the queue and POST it to the
+        CommandCenter map endpoint. The server classifies low_res_img and
+        draws the label + bbox ("[x,y,w,h]") on high_res_img for the map."""
         while True:
-            crop_png, cid, lat, lon, img_path, mission, bbox = self._clf_q.get()
+            crop_png, snap_png, cid, lat, lon, bbox = self._clf_q.get()
             bx, by, bw, bh = bbox
             try:
-                with open(img_path, "rb") as f:
-                    r = requests.post(
-                        CONTACT_URL,
-                        data={"lat": lat, "lon": lon,
-                              "bbox": f"[{bx},{by},{bw},{bh}]"},
-                        files=[("low_res_img", (f"crop_{cid}.png", crop_png,
-                                                "image/png")),
-                               ("high_res_img", (os.path.basename(img_path), f,
-                                                 "image/png"))],
-                        timeout=CONTACT_TIMEOUT_S)
+                r = requests.post(
+                    CONTACT_URL,
+                    data={"lat": lat, "lon": lon,
+                          "bbox": f"[{bx},{by},{bw},{bh}]"},
+                    files=[("low_res_img", (f"crop_{cid}.png", crop_png,
+                                            "image/png")),
+                           ("high_res_img", (f"snap_{cid}.png", snap_png,
+                                             "image/png"))],
+                    timeout=CONTACT_TIMEOUT_S)
                 self._clf_failures = 0
                 print(f"[export] contact #{cid} sent -> HTTP {r.status_code}")
             except Exception:
                 self._clf_failures += 1
                 if self._clf_failures == 3:
                     print("[export] map endpoint unreachable — real-time "
-                          "contact uploads off (use api.py after the mission)")
+                          "contact uploads off")
