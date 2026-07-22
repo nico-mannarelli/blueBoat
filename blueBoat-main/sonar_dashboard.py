@@ -141,7 +141,8 @@ def _nice_step(span, target_ticks=6):
 
 class SonarDashboard:
     def __init__(self, title="OmniScan 450", palette="blue", source_label="",
-                 mode="LIVE", contrast=1.12, gamma=0.85, brightness=0.0, web_data_dir="sonar_web/data"):
+                 mode="LIVE", contrast=1.12, gamma=0.85, brightness=0.0,
+                 web_data_dir="sonar_web/data", exporter=None):
         self.window = title
         self.title = title
         self.palette = palette
@@ -156,8 +157,10 @@ class SonarDashboard:
         self._t0 = time.time()
         self._last_t = time.time()
         self._fps = None
-        self.exporter = ContactExporter(web_data_dir) ####
-        self._exported_ids = set()  ####
+        # share one exporter across channels + the detection-time uploader
+        # (main.py) so upload dedup is global; fall back to our own if none given
+        self.exporter = exporter or ContactExporter(web_data_dir)
+        self._exported_ids = set()  # contacts already snapshotted locally
 
     # -- helpers ------------------------------------------------------------
 

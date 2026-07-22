@@ -167,10 +167,10 @@ class DetectionLog:
 
         ### added to use points inside fence for pipeline
         ### comment out when not at OAG
-        # def inside_fence(r):
-        #     p = Point(r["lat"], r["lon"])
-        #     return fence.contains(p) or fence2.contains(p)
-        # rows = [r for r in rows if inside_fence(r)]
+        def inside_fence(r):
+            p = Point(r["lat"], r["lon"])
+            return fence.contains(p) or fence2.contains(p)
+        rows = [r for r in rows if inside_fence(r)]
         ###
 
 

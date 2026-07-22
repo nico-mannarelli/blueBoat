@@ -44,6 +44,7 @@ from contacts_coords import coords
 from contact_export import ContactExporter
 from sonar_display import colorize
 from api import api_upload
+import shared_states
 
 
 HOST     = os.environ.get("HOST", "192.168.2.2")
@@ -74,7 +75,7 @@ SURVEY_IDLE_TIMEOUT = float(os.environ.get("SURVEY_IDLE_TIMEOUT", "0"))
 #                   and starts the new mission (e.g. "python mavlink.py").
 POPULATE_FILE = os.environ.get("POPULATE_FILE")
 POPULATE_VAR  = os.environ.get("POPULATE_VAR", "WAYPOINTS")
-RUN_AFTER     = os.environ.get("RUN_AFTER", "python mavlink_nopipeline.py")    ############################## 
+RUN_AFTER     = os.environ.get("RUN_AFTER", "python mavlink.py")    ############################## 
 # If set, write the contact list as a Python array (coords = [(lat, lon, 0), ...])
 # to this path at the end of the run. e.g. COORDS_OUT=contacts_coords.py
 COORDS_OUT = os.environ.get("COORDS_OUT")
@@ -94,7 +95,7 @@ PLANNER_MIN_HITS = int(os.environ.get("PLANNER_MIN_HITS", "1"))
 
 # Last waypoint seq of mission 1 — must match the mission you actually fly
 # (completion fallback fires when MISSION_ITEM_REACHED hits this seq).
-MISSION1_END = int(os.environ.get("MISSION1_END", "4"))
+MISSION1_END = int(os.environ.get("MISSION1_END", "13"))
 
 # Side-scan look direction per channel, as an offset from vehicle heading.
 # NOTE: port=0 / starboard=1 mapping mirrors the XTF channel order but should
@@ -109,6 +110,9 @@ parser     = OmniScanParser()
 detectors  = {}               # channel_number -> WaterfallDetector
 dashboards = {}               # channel_number -> SonarDashboard
 log        = DetectionLog(merge_radius_m=3.0)   # de-duplicated mission contacts
+exporter   = ContactExporter("sonar_web/data")  # local snapshots + map uploads
+revisit_ids = set()           # contact ids the post-mission-1 filter selected;
+                              # mission 2 uploads ONLY these to the map
 
 
 # ---- georeferencing --------------------------------------------------------
@@ -145,7 +149,8 @@ def _dashboard(channel):
     d = dashboards.get(channel)
     if d is None:
         d = SonarDashboard(title=_window_name(channel), palette=PALETTE,
-                           source_label=f"{HOST}:{PORT}  ch{channel}", mode="LIVE")
+                           source_label=f"{HOST}:{PORT}  ch{channel}", mode="LIVE",
+                           exporter=exporter)
         dashboards[channel] = d
     return d
 
@@ -177,6 +182,17 @@ def handle_detection(objects, ping, image):
                         score=obj.get("score", 0.0),
                         ping_number=ping["ping_number"])
             obj["cid"] = c["id"]
+
+            # Mission 2 only, and ONLY for contacts the post-mission-1 filter
+            # selected (revisit_ids) — the boat drives back to these, so we
+            # upload each one with its fresh mission-2 crop as it's re-detected.
+            # Background thread + per-id dedup: never stalls the sonar, never
+            # double-sends. (mission 1 = survey, no upload.)
+            if image is not None and not shared_states.mission_1_png \
+                    and c["id"] in revisit_ids \
+                    and all(k in obj for k in ("x", "y", "w", "h")):
+                exporter.upload_contact(image, c["id"], latlon[0], latlon[1],
+                                        (obj["x"], obj["y"], obj["w"], obj["h"]))
 
     if image is not None:
         draw(objects, ping, image)
@@ -280,8 +296,13 @@ def main():
                   f"(import with: from {os.path.splitext(os.path.basename(path))[0]} "
                   "import coords)")
         # The revisit contacts: largest N, dropping one-ping flickers.
+        # to_coords returns (lat, lon, id) triples.
         revisit = (log.to_coords(largest=PLANNER_LARGEST, min_hits=PLANNER_MIN_HITS)
                    if len(log) else [])
+        # These are the ONLY contacts mission 2 uploads to the map — the boat
+        # revisits them and re-detects them; handle_detection gates on this set.
+        revisit_ids.clear()
+        revisit_ids.update(cid for _, _, cid in revisit)
         print(f"[main] revisit filter: min_hits={PLANNER_MIN_HITS} "
               f"largest={PLANNER_LARGEST} -> kept {len(revisit)} of "
               f"{len(log)} contact(s)")
@@ -322,10 +343,10 @@ def main():
 
 
         # upload to website the selected coords pictures after mission 1
-        COORDINATES = [(lat, lon, cid) for lat,lon,cid in coords]
-        for lat,lon,cid in COORDINATES:
-            api_upload(lat, lon, cid)
-            print(cid)
+        # COORDINATES = [(lat, lon, cid) for lat,lon,cid in coords]
+        # for lat,lon,cid in COORDINATES:
+        #     api_upload(lat, lon, cid)
+        #     print(cid)
 
         
         time.sleep(10)
@@ -333,6 +354,14 @@ def main():
         # Re-arm the completion callback for mission 2 — the fired flag is
         # one-shot, so without this the second mission can't auto-stop the sonar.
         mav.reset_mission_tracking()
+
+        # Mission 1's sonar thread owned these display windows; that thread
+        # is dead now. cv2 windows are bound to the thread that created them,
+        # so mission 2's NEW sonar thread can't repaint them — the picture
+        # would freeze even though sonar data is flowing fine underneath.
+        # Destroying them here means the first imshow() in mission 2 creates
+        # fresh windows the new thread actually owns.
+        cv2.destroyAllWindows()
 
         # MISSION2_END: last waypoint seq of mission 2, for firmware/SITL that
         # never streams MISSION_CURRENT.mission_state. Unset -> mission_state
@@ -342,7 +371,7 @@ def main():
         # call sonar again for second mission; returns when mission 2 completes
         sonar.run_second_mission(auto_reconnect=True,
                                  missionEnd=int(m2_end) if m2_end else None)
-            
+
         cv2.destroyAllWindows()
 
 
