@@ -414,7 +414,7 @@ def upload_mission(waypoints, crosspoints, returnpoints):
             mavutil.mavlink.MAV_FRAME_GLOBAL_INT,
             mavutil.mavlink.MAV_CMD_NAV_WAYPOINT,
             current, 1,        # current, autocontinue
-            5, 1.0, 0,        # hold time !!! , acceptance radius, pass radius
+            , 1.0, 0,        # hold time !!! , acceptance radius, pass radius
             math.nan,          # yaw
             int(lat * 1e7),
             int(lon * 1e7),

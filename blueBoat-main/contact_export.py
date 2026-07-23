@@ -32,7 +32,7 @@ import shared_states
 
 # ---- map upload config ------------------------------------------------------
 CONTACT_URL        = "http://10.107.30.63:30932/marker/boat"  # CommandCenter map endpoint
-CONTACT_TIMEOUT_S  = 15.0     # classify + forward on the server side
+CONTACT_TIMEOUT_S  = 60.0     # classify + forward on the server side
 CROP_MARGIN        = 40       # px of context around the contact in the snapshot
 
 

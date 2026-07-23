@@ -75,7 +75,7 @@ SURVEY_IDLE_TIMEOUT = float(os.environ.get("SURVEY_IDLE_TIMEOUT", "0"))
 #                   and starts the new mission (e.g. "python mavlink.py").
 POPULATE_FILE = os.environ.get("POPULATE_FILE")
 POPULATE_VAR  = os.environ.get("POPULATE_VAR", "WAYPOINTS")
-RUN_AFTER     = os.environ.get("RUN_AFTER", "python mavlink.py")    ############################## 
+RUN_AFTER     = os.environ.get("RUN_AFTER", "python mavlink_nopipeline.py")    ############################## 
 # If set, write the contact list as a Python array (coords = [(lat, lon, 0), ...])
 # to this path at the end of the run. e.g. COORDS_OUT=contacts_coords.py
 COORDS_OUT = os.environ.get("COORDS_OUT")
@@ -83,6 +83,7 @@ COORDS_OUT = os.environ.get("COORDS_OUT")
 # COORDS_LARGEST=50) and drop contacts seen on fewer than COORDS_MIN_HITS pings.
 COORDS_LARGEST = os.environ.get("COORDS_LARGEST")
 COORDS_LARGEST = int(COORDS_LARGEST) if COORDS_LARGEST else None
+
 COORDS_MIN_HITS = int(os.environ.get("COORDS_MIN_HITS", "1"))
 
 # Autonomous handoff: at end of survey, send the contacts to the
@@ -95,7 +96,7 @@ PLANNER_MIN_HITS = int(os.environ.get("PLANNER_MIN_HITS", "1"))
 
 # Last waypoint seq of mission 1 — must match the mission you actually fly
 # (completion fallback fires when MISSION_ITEM_REACHED hits this seq).
-MISSION1_END = int(os.environ.get("MISSION1_END", "13"))
+MISSION1_END = int(os.environ.get("MISSION1_END", "50"))
 
 # Side-scan look direction per channel, as an offset from vehicle heading.
 # NOTE: port=0 / starboard=1 mapping mirrors the XTF channel order but should
