@@ -164,6 +164,8 @@ class ContactExporter:
         while True:
             crop_png, snap_png, cid, lat, lon, bbox = self._clf_q.get()
             bx, by, bw, bh = bbox
+            print(f"[export] contact #{cid} uploading "
+                  f"(queue depth now {self._clf_q.qsize()})...")
             try:
                 r = requests.post(
                     CONTACT_URL,
@@ -176,8 +178,10 @@ class ContactExporter:
                     timeout=CONTACT_TIMEOUT_S)
                 self._clf_failures = 0
                 print(f"[export] contact #{cid} sent -> HTTP {r.status_code}")
-            except Exception:
+            except Exception as e:
+                # print EVERY failure, not just every 3rd — a silent failure
+                # here is indistinguishable from "detection never happened",
+                # which made this bug impossible to diagnose from the console
                 self._clf_failures += 1
-                if self._clf_failures == 3:
-                    print("[export] map endpoint unreachable — real-time "
-                          "contact uploads off")
+                print(f"[export] contact #{cid} FAILED ({self._clf_failures} "
+                      f"in a row): {type(e).__name__}: {e}")
