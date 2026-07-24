@@ -323,7 +323,7 @@ while True:
             0,0,0,0,0,0
         )
         print("manual")
-        time.sleep(1)
+        time.sleep(5)
         connection.mav.command_long_send(
             connection.target_system,
             connection.target_component,
@@ -333,7 +333,7 @@ while True:
             10,0,0,0,0,0
         )
         print("auto")
-        time.sleep(1)
+        time.sleep(5)
         
         break
         

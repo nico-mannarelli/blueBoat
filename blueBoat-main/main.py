@@ -91,7 +91,7 @@ COORDS_MIN_HITS = int(os.environ.get("COORDS_MIN_HITS", "1"))
 # disables it. We send the largest PLANNER_LARGEST contacts (default 50), each
 # seen on >= PLANNER_MIN_HITS pings (default 2, to drop one-ping flickers).
 SEND_TO_PLANNER = os.environ.get("SEND_TO_PLANNER", "1") not in ("0", "", "false", "False")
-PLANNER_LARGEST = int(os.environ.get("PLANNER_LARGEST", "10"))
+PLANNER_LARGEST = int(os.environ.get("PLANNER_LARGEST", "40"))
 PLANNER_MIN_HITS = int(os.environ.get("PLANNER_MIN_HITS", "1"))
 
 # Last waypoint seq of mission 1 — must match the mission you actually fly
